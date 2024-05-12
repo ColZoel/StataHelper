@@ -18,14 +18,19 @@ def cartesian(args: List[any] | dict.values) -> List[Tuple[any]]:
     return list(product(*args))
 
 
-def read_yaml(yamlpath: str) -> dict:
+def read_yaml(yamlpath: str | dict) -> dict:
     """
     read a yaml file
     :param yamlpath: path to yaml file
     :return: dictionary
     """
-    with open(yamlpath, 'r') as file:
-        return yaml.safe_load(file)
+    if isinstance(yamlpath, str):
+        with open(yamlpath, 'r') as file:
+            return yaml.safe_load(file)
+    elif isinstance(yamlpath, dict):
+        return yamlpath
+    else:
+        raise ValueError(f"expected type str or dict, got {type(yamlpath)}")
 
 
 def sys_yaml():

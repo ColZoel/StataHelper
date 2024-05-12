@@ -1,4 +1,4 @@
-statafolder: C:\Program Files\Stata18
+stata_path: C:\Program Files\Stata18
 edition: mp  # one of se, be or mp
 display_splash: False  #whether to start STATA main screen upon init
 
