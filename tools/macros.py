@@ -1,4 +1,0 @@
-"""
-Wrapper for macro manipulations
-"""
-
