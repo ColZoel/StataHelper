@@ -167,7 +167,7 @@ from StataHelper import Stata as Stata
 stata = Stata(splash=False)
 values = {'y': ['depvar1', 'depvar2', 'depvar3']}
 
-results = stata.parallel("reg {y} ind* contr*", values, stata_wildcard=True)
+results = stata.parallel("reg {y} ind* contr*", values, stata_wildcards=True)
 ```
 
 ### Multi-level Fixed Effects
@@ -187,7 +187,7 @@ results = stata.parallel("reghdfe {y} {x} absorb({fixed_effects})", values)
 ```
 
 ### Multiline Stata Code
-You can also pass multiline Stata code to the `parallel` method, just as you can with `pystata.stata.run`. 
+You can also pass multiline Stata code to the `parallel` method, just as you can with `pystata.stata.run`.
 
 ```python
 import StataHelper
@@ -205,7 +205,7 @@ results = stata.parallel("""
 ```
 
 ### Conditional Statements
-You can also pass conditional statements to the `parallel` method to analyze a subset of the data. 
+You can also pass conditional statements to the `parallel` method to analyze a subset of the data.
 
 ```python
 import StataHelper
@@ -363,7 +363,7 @@ reg y indepvar1
 reg y indepvar2
 reg y indepvar3
 ```
-Values can also be conditional statements. 
+Values can also be conditional statements.
 
 ```python
 values = {'x': ['indepvar1', 'indepvar2', 'indepvar3'],

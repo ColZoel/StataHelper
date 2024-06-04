@@ -1,4 +1,4 @@
-name: pyata
+name: statahelper
 channels:
   - conda-forge
   - defaults
@@ -7,3 +7,5 @@ dependencies:
   - numpy
   - pandas
   - pyyaml
+  - pip:
+    - pytest

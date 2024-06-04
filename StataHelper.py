@@ -3,35 +3,17 @@ Stata: a simplified Python wrapper and parallelizer for Stata
 """
 import sys
 from typing import List, Tuple, Dict
-
-from exceptions.validate import _DefaultMissing
 from utils import *
-from parallel import *
+from utils import _DefaultMissing
+from wrappers import *
 import pandas as pd
 import numpy as np
-from exceptions.validate import *
-
-class Results:
-
-    def __init__(self):
-        self.results = None
-
-    def show(self, display: bool = False):
-        """
-        display the results
-        :param display: display the results
-        :param results: list of results returned from the parallelized Stata command
-        """
-        if display:
-            for result in self.results:
-                print(result)
-        return self
 
 
 class Stata:
-    # TODO: implement STATA in __init__ and wrappers
-    # Todo: default to config.yaml?
-    def __init__(self, config=None,
+    def __init__(self,
+                 params: None | str | Dict = None,
+                 config: None | str = None,
                  stata_path=None,
                  edition=None,
                  splash=None,
@@ -43,16 +25,19 @@ class Stata:
                  set_streaming_output=None,
                  set_output_file=None):
 
-        self.args = None
-        self.cmd = None
         self.cores = cpu_count()
-        self.data = None
         self.safety_buffer = 1
         self.maxcores = self.cores-self.safety_buffer
-        self.results = None
-        self.expected_params = None
-        self.status = None
+
         self.is_stata_initialized = None
+        self.expected_params = None
+        self.count = None
+        self.results = None
+        self.data = None
+        self.params = get_params(params)
+        self.args = None
+        self.cmd = None
+        self.que = None
 
         if config is not None:
             self.config = read_yaml(config)
@@ -80,10 +65,7 @@ class Stata:
 
         sys.path.append(self.stata_path)
         import pystata
-        pystata.config.init(
-            edition=self.edition,
-            splash=self.splash,
-        )
+        pystata.config.init(edition=self.edition,plash=self.splash)
         if self.set_graph_format is not None:
             pystata.config.set_graph_format(self.set_graph_format)
         if self.set_graph_size is not None:
@@ -103,7 +85,7 @@ class Stata:
         self.status = pystata.config.status()
 
         if not self.is_stata_initialized:
-            raise ValueError("Stata is not initialized.")  # TODO: change to StataError
+            raise SystemError("Stata is not initialized.")  # TODO: change to StataError
 
     def is_stata_initialized(self):
         """
@@ -111,17 +93,20 @@ class Stata:
         """
         return self.is_stata_initialized
 
-    def status(self):
+    @staticmethod
+    def status():
         """
         check the status of the Stata instance. Wrapper for pystata.config.status()
         """
-        return self.status
+        import pystata
+        return pystata.config.status
 
     @staticmethod
     def close_output_file():
         """
         close the output file. Wrapper for pystata.config.close_output_file()
         """
+        import pystata
         return pystata.config.close_output_file()
 
     @staticmethod
@@ -130,6 +115,7 @@ class Stata:
         run a single Stata command. wrapper for pystata.stata.run()
         :param cmd: Stata command
         """
+        import pystata
         return pystata.stata.run(cmd, *args, **kwargs)
 
     @staticmethod
@@ -138,6 +124,7 @@ class Stata:
         get the return values from the last command
         wrapper for pystata.stata.get_return()
         """
+        import pystata
         return pystata.stata.get_return()
 
     @staticmethod
@@ -146,8 +133,8 @@ class Stata:
         get the e return values from the last command
         wrapper for pystata.stata.get_ereturn()
         """
+        import pystata
         return pystata.stata.get_ereturn()
-
 
     @staticmethod
     def get_sreturn() -> Dict:
@@ -155,15 +142,39 @@ class Stata:
         get the s return values from the last command
         wrapper for pystata.stata.get_sreturn()
         """
+        import pystata
         return pystata.stata.get_sreturn()
 
+    def use(self, dta: str, columns: List[str] | None = None, obs: str | None = None, *args, **kwargs):
+        """
+        Inline method to use data in Stata
+        :param dta: str dta path
+        :param columns: list of columns to use when loading data
+        :param obs: observations to load
+        :return: None. Data is loaded into Stata
+        """
+        cmd = "use"
+        if columns is not None:
+            columns = " ".join(columns)
+            cmd = cmd + columns
+        if obs is not None:
+            cmd = cmd + " in " + obs
+        if columns is None or obs is None:
+            cmd = cmd + " using"
+        cmd = cmd + " " + dta
+        self.run(cmd, *args, **kwargs)
+        return self
 
-
-    def use(self, path: np.array | str, frame: None | str = None, force=False, *args, **kwargs):
+    def use_file(self,
+                 path: np.array | str,
+                 frame: None | str = None,
+                 force=False,
+                 *args,
+                 **kwargs):
         """
         read any pandas supported file type and send to Stata instance
         """
-        if isinstance(path, np.Array):
+        if isinstance(path, np.ndarray):
             self.data = path
             if frame is not None:
                 pystata.stata.nparray_to_frame(self.data, frame, force=force)
@@ -283,17 +294,70 @@ class Stata:
 
         return self
 
+    def conditions(self, keys: List[str], sep="&", name="if"):
+        """
+        create a condition string for Stata
+        :param keys: list of keys
+        :param sep: separator
+        :param name: name of the condition
+        :return: condition string
+        """
+        subdict = {k: self.params[k] for k in keys}
+        combinations = cartesian(subdict.values())
+        conditions = [f"{sep}".join(map(str, c)) if "" not in c else " ".join(map(str, c)) for c in combinations]
+        conditions = [f" if {c}" if c != "" else "" for c in conditions]
+        self.params[name] = conditions
+        self.params = {k: v for k, v in self.params.items() if k not in keys}
+        return self
+
+    @staticmethod
+    def parse_cmd(cmd: str, params: Dict):
+        """
+        parse elements of a Stata command and replace wildcards or bracketed arguments with values from the arguments
+        :param cmd: str Stata command
+        :param params: dict of arguments
+        :return: result of the command
+        """
+        for key, value in params.items():
+            if isinstance(value, list):
+                cmd = cmd.replace(f"{{{key}}}", " ".join(value))
+            else:
+                cmd = cmd.replace(f"{{{key}}}", value)
+        return cmd
+
+    @carriage_print
+    def schedule(self, cmd: str):
+        """
+        Return the que of commands to be run in parallel (cartesian product). Analogous to the parallel method, but
+        does not execute the commands.
+        :param cmd: str Stata command template
+        :param iterable: str, dict, list of strings or tuples to be parallelized
+        :param stata_wildcards: list(int) or int indicating the indices of wildcards to be treated as stata wildcards
+        :return: list of commands to be run in parallel
+        """
+
+        if not isinstance(cmd, str):
+            raise TypeError(f" Invalid Stata command. Expected a string, got type {type(cmd)}.")
+        if cmd.count("{") != len(self.args[0]):
+            raise ValueError(f"Expected {self.expected_params} parameters, but received {len(self.args[0])}.")
+
+        self.cmd = cmd
+        cartesian_args = cartesian(self.args)
+        itemized = [dict(zip(self.args.keys, c)) for c in cartesian_args]
+
+        self.que = [self.parse_cmd(cmd, i) for i in itemized]
+        self.count = len(self.que)
+        return self.que
+
     def parallel(self, cmd: str,
-                 iterable: str | Dict | List[str | tuple | List[str]],
-                 stata_wildcard: bool = False,
                  maxcores: int = None,
-                 safety_buffer: int = 1,
-                 show_batches: bool = False):
+                 safety_buffer: int = 1):
         """
         run a Stata command in parallel: wrapper for pystata.stata.Run() on multiple cores
         :param cmd: Template of Stata command
         :param iterable: arguments to be parallelized. Can come from a dictoinary, yaml, list of strings or tuples
-        :param stata_wildcard: Treat all * as a stata wildcard e.g. 'drop y_*' or 'esttab *'
+        :param stata_wildcards: list(int) or int indicating the indices of wildcards
+        in the command that should be treated as a stata wildcard
         :param maxcores: maximum number of cores to use
         :param safety_buffer: number of cores to leave free
         :param show_batches: display the batches as they are processed
@@ -305,31 +369,16 @@ class Stata:
         self.cmd = cmd
         self.results = None
 
-        if not stata_wildcard:
-            self.expected_params = cmd.count("{") + cmd.count("*")
-        else:
-            self.expected_params = cmd.count("{")
+        # --------------------------- Parameters in Parameters ---------------------------
 
-        if isinstance(iterable, str):
-            # TODO: handle paths to yamls
-            pass
-
-        elif isinstance(iterable, dict):
-            self.args = Import().from_dict(iterable).show(show_batches).args
-        elif isinstance(iterable, list) and isinstance(iterable[0], str):
-            self.args = Import().from_list(iterable).show(show_batches).args
-        elif isinstance(iterable, tuple) and isinstance(iterable[0], tuple):
-            self.args = Import().from_args(iterable).show(show_batches).args
-        inputted_params = len(self.args[0])
-        if self.expected_params != inputted_params:
-            raise ValueError(f"Expected {self.expected_params} parameters, but received {inputted_params}.")
-
-        iterable = [(show_batches, self.cmd, arg) for arg in self.args]
-        # for tup in iterable:
-        #     cmd_process(*tup)
-        self.results = paralellize(cmd_process, iterable, maxcores, safety_buffer)  # Todo: implement STATA
+        schedule = self.schedule(cmd)
+        self.results = parallelize(self.run, schedule, maxcores, safety_buffer)
         return self
 
 
 if __name__ == '__main__':
-    Stata().parallel("reg {y} {x}", {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}, maxcores=2, safety_buffer=1, show_batches=True)
+    params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
+
+    s = Stata(params)
+    s.que("regress {y} {x}")
+
