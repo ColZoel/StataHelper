@@ -1,2 +1,3 @@
-from StataHelper import Stata
-
+from StataHelper import StataHelper
+version = "0.1.0"
+__version__ = version

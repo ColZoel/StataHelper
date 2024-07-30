@@ -9,15 +9,38 @@ import os
 from itertools import product
 from typing import List, Tuple, Dict
 from wrappers import Parameters
-
+from pathlib import Path
 
 class _DefaultMissing:
     '''
-    Stata class. Here for replication.
+    StataHelper class. Here for replication.
     https://www.stata.com/python/pystata18/stata.html#ref-defaultmissing
     '''
     def __repr__(self):
         return "_DefaultMissing()"
+
+
+class OverwriteError(Exception):
+    def __init__(self, filepath, numfiles):
+        self.message = f"OverwriteError: {filepath} already exists. This operation will remove alll {numfiles} files" \ 
+        "and saves new ones. If this is intended, set overwrite=True."
+        super().__init__(self.message)
+
+
+def sep(iterable):
+    return " ".join(map(str,iterable))
+
+
+def sep_var(estimate_file):
+    return os.path.basename(estimate_file).split('_')[0]
+
+
+def is_pathlike(string: str):
+    try:
+        Path(string)
+        return True
+    except Exception:
+        return False
 
 
 def cartesian(args: List[any] | dict.values) -> List[Tuple[any]]:
@@ -65,3 +88,23 @@ def get_params(params: Dict[str, List[str]]):
     else:
         raise TypeError(f"Unsupported iterable type {type(params)}."
                         " Expected a yaml file, dictionary, list of strings, or list of tuples.")
+
+
+def progress(text, i, count):
+    i = i+1
+    l= 20
+    pct = (i/count)*100
+    width = int(l*i//count)
+    bar = '#'*width+" "*(l-width)
+    print(f"\r{i} of {count} |{bar}| {int(pct)}% | {text}", end="")
+    if i == count:
+        print("")
+    return None
+
+
+def limit_cores(iterable, maxcores=None, buffer=1):
+    cores = len(iterable)
+    if maxcores is not None and cores > maxcores:
+        cores = maxcores
+    cores = os.cpu_count() - buffer if cores > os.cpu_count() and buffer is not None else cores
+    return cores
