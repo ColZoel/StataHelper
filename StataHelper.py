@@ -2,6 +2,7 @@
 StataHelper: a simplified Python wrapper and parallelizer for StataHelper
 """
 import sys
+from builtins import *
 from typing import List, Tuple, Dict
 from utils import *
 from utils import _DefaultMissing
@@ -17,7 +18,6 @@ import datetime
 
 class StataHelper:
     def __init__(self,
-                 params: None | str | Dict = None,
                  stata_path=None,
                  edition=None,
                  splash=None,
@@ -31,15 +31,13 @@ class StataHelper:
                  set_output_file=None):
 
         # --------------------------- Module Parameters ---------------------------
-        self.params = get_params(params)
         self.input_dir = None
         self.estimates_dir = set_estimates_dir
         self.overwrite_estimates = False
         self.cmd = None
+        self.pmap = None
         self.queue = None
-        self.keys = None
-        self.count = None
-        self.expected_params = None
+        self.qcount = None
 
         # --------------------------- System/ Parallelization Parameters ---------------------------
         self.cores = cpu_count()
@@ -50,34 +48,37 @@ class StataHelper:
         self.stata_path = stata_path
         self.edition = edition
         self.splash = splash
-        self.set_graph_format = set_graph_format
-        self.set_graph_size = set_graph_size
-        self.set_graph_show = set_graph_show
-        self.set_command_show = set_command_show
-        self.set_autocompletion = set_autocompletion
-        self.set_streaming_output = set_streaming_output
-        self.set_output_file = set_output_file
+        self.graph_format = set_graph_format
+        self.graph_size = set_graph_size
+        self.graph_show = set_graph_show
+        self.command_show = set_command_show
+        self.autocompletion = set_autocompletion
+        self.streaming_output = set_streaming_output
+        self.output_file = set_output_file
 
         sys.path.append(self.stata_path)
+        if not os.path.exists(self.stata_path):
+            raise ValueError(f"Stata not found at {self.stata_path}")
         import pystata
-        pystata.config.init(edition=self.edition,plash=self.splash)
-        if self.set_graph_format is not None:
-            pystata.config.set_graph_format(self.set_graph_format)
-        if self.set_graph_size is not None:
-            pystata.config.set_graph_size(self.set_graph_size)
-        if self.set_graph_show is not None:
-            pystata.config.set_graph_show(self.set_graph_show)
-        if self.set_command_show is not None:
-            pystata.config.set_command_show(self.set_command_show)
-        if self.set_autocompletion is not None:
-            pystata.config.set_autocompletion(self.set_autocompletion)
-        if self.set_streaming_output is not None:
-            pystata.config.set_streaming_output(self.set_streaming_output)
-        if self.set_output_file is not None:
-            pystata.config.set_output_file(self.set_output_file)
+        pystata.config.init(edition=self.edition, splash=self.splash)
 
-        self.is_stata_initialized = pystata.config.is_stata_initialized()
-        self.status = pystata.config.status()
+        # TODO: test kwgs in each of these
+        if self.graph_format is not None:
+            pystata.config.set_graph_format(**self.graph_format)
+        if self.graph_size is not None:
+            pystata.config.set_graph_size(self.graph_size)
+        if self.graph_show is not None:
+            pystata.config.set_graph_show(self.graph_show)
+        if self.command_show is not None:
+            pystata.config.set_command_show(self.command_show)
+        if self.autocompletion is not None:
+            pystata.config.set_autocompletion(self.autocompletion)
+        if self.streaming_output is not None:
+            pystata.config.set_streaming_output(self.streaming_output)
+        if self.output_file is not None:
+            pystata.config.set_output_file(self.output_file)
+
+        self._stata_initialized = pystata.config.is_stata_initialized()  # Doesn't seem to work in base Pystata module
 
         if not self.is_stata_initialized:
             raise SystemError("StataHelper is not initialized.")  # TODO: change to StataError
@@ -86,7 +87,7 @@ class StataHelper:
         """
         check if StataHelper is initialized: Wrapper for pystata.config.is_stata_initialized()
         """
-        return self.is_stata_initialized
+        return self._stata_initialized
 
     @staticmethod
     def status():
@@ -94,7 +95,7 @@ class StataHelper:
         check the status of the StataHelper instance. Wrapper for pystata.config.status()
         """
         import pystata
-        return pystata.config.status
+        return pystata.config.status()
 
     @staticmethod
     def close_output_file():
@@ -162,8 +163,8 @@ class StataHelper:
         return self
 
     def use_file(self,
-                 path: np.array | str,
-                 frame: None | str = None,
+                 path,
+                 frame=None,
                  force=False,
                  *args,
                  **kwargs):
@@ -294,17 +295,18 @@ class StataHelper:
     def conditions(self, keys: List[str], sep="&", name="if"):
         """
         create a condition string for StataHelper
+        :type sep: str
         :param keys: list of keys
         :param sep: separator
         :param name: name of the condition
         :return: condition string
         """
-        subdict = {k: self.params[k] for k in keys}
+        subdict = {k: self.pmap[k] for k in keys}
         combinations = cartesian(subdict.values())
         conditions = [f"{sep}".join(map(str, c)) if "" not in c else " ".join(map(str, c)) for c in combinations]
         conditions = [f" if {c}" if c != "" else "" for c in conditions]
-        self.params[name] = conditions
-        self.params = {k: v for k, v in self.params.items() if k not in keys}
+        self.pmap[name] = conditions
+        self.pmap = {k: v for k, v in self.pmap.items() if k not in keys}
         return self
 
     @staticmethod
@@ -327,10 +329,10 @@ class StataHelper:
         cmd = self._parse_cmd(self.cmd, items_dict)
         idx = []
         for key, value in items_dict.items():
-            if isinstance(self.params[key], str):
+            if isinstance(self.pmap[key], str):
                 idx.append(0)
             else:
-                idx.append(self.params[key].index(value))
+                idx.append(self.pmap[key].index(value))
             if isinstance(value, list):
                 if key is not None and key in keys:
                     if isinstance(names, list):
@@ -354,9 +356,9 @@ class StataHelper:
         if len(glob(os.path.join(self.estimates_dir, "*.ster"))) > 0 and self.overwrite_estimates is False:
             raise OverwriteError(self.estimates_dir, len(glob(os.path.join(self.estimates_dir, "*.ster"))))
 
-        if self.overwrite_estimates:
-            for file in glob(os.path.join(self.estimates_dir, "*.ster")):
-                os.remove(file)
+        # if self.overwrite_estimates:
+        #     for file in glob(os.path.join(self.estimates_dir, "*.ster")):
+        #         os.remove(file)
 
         outname = os.path.join(self.estimates_dir, outname)
 
@@ -364,35 +366,35 @@ class StataHelper:
         subdict['cmd'] = cmd
         return subdict
 
-    @carriage_print
-    def schedule(self, cmd: str, keys=None, keyvalues=None, **kwargs):
+    # @carriage_print
+    def schedule(self, cmd: str, pmap: dict):
         """
         Return the que of commands to be run in parallel (cartesian product). Analogous to the parallel method, but
         does not execute the commands.
         :param cmd: str StataHelper command template
-        :param iterable: str, dict, list of strings or tuples to be parallelized
-        :param stata_wildcards: list(int) or int indicating the indices of wildcards to be treated as stata wildcards
+        :param pmap: dict where the keys correspond with the values in cmd to change and the values are lists of values
         :return: list of commands to be run in parallel
         """
 
-        if keyvalues is None:
-            keyvalues = []
         if not isinstance(cmd, str):
             raise TypeError(f" Invalid StataHelper command. Expected a string, got type {type(cmd)}.")
-        acutal_arg_count = cmd.count("{")
-        if acutal_arg_count != len(self.expected_params):
-            raise ValueError(f"Expected {self.expected_params} parameters, but received {acutal_arg_count}.")
+        acutal_args = cmd.count("{")
+        map_args = len(pmap.keys())
+        if acutal_args > map_args:
+            raise ValueError(f"Expected {map_args} parameters, but received {acutal_args}.")
 
         self.cmd = cmd
-        cartesian_args = cartesian(self.params.values())
-        itemized = [dict(zip(self.params.keys(), c)) for c in cartesian_args]
+        cartesian_args = cartesian(pmap.values())
+        itemized = [dict(zip(pmap.keys(), c)) for c in cartesian_args]
 
         self.queue = [self._parse_cmd(cmd, i) for i in itemized]
-        self.count = len(self.queue)
+        self.qcount = len(self.queue)
         return self.queue
 
     @staticmethod
-    def _parallel_task(paramsdict: Dict, *kwargs):
+    def _parallel_task(self, paramsdict: Dict, *kwargs):
+
+        opt= "replace" if self.overwrite_estimates else "append"
 
         kwargs = kwargs[0]
         fmt = "%d %b %Y %H:%M"
@@ -404,12 +406,11 @@ class StataHelper:
         for key, value in paramsdict.items():
             if key not in ['cmd', 'outname']:
                 xtra_cmd += f'estadd local {key} "{value}"\n'
+        xtra_cmd += "qui: sum `e(depvar)' if e(sample)\nqui: estadd scalar Mean =r(mean)\n"
         import pystata
         pystata.stata.run(paramsdict['cmd'], **kwargs)
         pystata.stata.run(xtra_cmd, **kwargs)
-        pystata.stata.run("qui: sum `e(depvar)' if e(sample)\n"
-                          "qui: estadd scalar Mean =r(mean)\n", **kwargs)
-        pystata.stata.run(f"estimates save {paramsdict['outname']}", **kwargs)
+        pystata.stata.run(f"estimates save {paramsdict['outname']}, {opt}", **kwargs)
 
         endtime = time.time()
         elasped = endtime - starttime
@@ -418,8 +419,7 @@ class StataHelper:
 
     def parallel(self,
                  cmd: str,
-                 keys=None,
-                 names="Yes",
+                 pmap: dict,
                  overwrite_estimates=False,
                  maxcores: int = None,
                  safety_buffer: int = 1,
@@ -427,36 +427,24 @@ class StataHelper:
         """
         run a StataHelper command in parallel: wrapper for pystata.stata.Run() on multiple cores
         :param cmd: Template of StataHelper command
-        :param keys: list or string of keys in the input whose values will create their own row in the output.
-        these keys are then followed by 'names'. This is useful for fixed effects.
-        e.g. keys = ['fes', 'others'], names = ['Yes', 'No'], where dict[fe1]=['fe1', 'fe2'] and dict[others]=['o1', 'o2']
-        creates the following rows in the estimate output:
-        ---------------
-        | fe1 | Yes |
-        ---------------
-        | fe2 | Yes |
-        ---------------
-        | o1  | No  |
-        ---------------
-        | o2  | No  |
-        ---------------
-        :param names: list of strings or string to be used in the output for the keys in 'keys'. The name applies to all
-        values in the key. If a list, the length must be equal to the length of the values in the key.
-        :param overwrite_estimates: bool, if True, overwrite existing estimates files. If False, raise an error if
-        estimates_dir is not empty.
+        :param pmap: dict where the keys correspond with the values in cmd to change and the values are lists of values
+        :param overwrite_estimates: bool, if True, overwrite existing estimates files. default is False.
         :param maxcores: int, maximum number of cores to use. default is the number of cores on the machine.
         :param safety_buffer: int, number of cores to leave available. default is 1.
         """
+        self.cmd = cmd
+        self.schedule(cmd, pmap)
+        self.overwrite_estimates = overwrite_estimates
         if kwargs:
             params = [(i, kwargs) for i in self.queue]
         else:
             params = [i for i in self.queue]
-        self.cmd = cmd
-        self.overwrite_estimates = overwrite_estimates
-        self.schedule(cmd, keys=keys, names=names)
         self.cores = limit_cores(params, maxcores, safety_buffer)
-        print(f"\n# cmds in queue: {self.count}    # cores: {self.cores}\n")
-        parallelize(self._parallel_task, params, self.cores)
+        # TODO: add prep_task_dict to parallelize
+        print(f"\n# cmds in queue: {self.qcount}    # cores: {self.cores}\n")
+
+        parallelize(func=self._parallel_task, iterable=params, maxcores=self.cores, buffer=safety_buffer)
+
         return self
 
     @staticmethod
@@ -466,9 +454,9 @@ class StataHelper:
         create an excel file with the results of the parallelized StataHelper commands. This organizes each sheet by the
         first key in the labelsdict in separate sheets.
         :param src: source directory of the estimates files
-        :param dst: destination & name of the excel file. default is cwd with the name 'results{currentdate}.xlsx'
+        :param dst: destination & name of the Excel file. default is cwd with the name 'results{currentdate}.xlsx'
         :param labelsdict: dictionary of labels for the keys in the estimates files.
-        :param argstring: cmd for estout if different than the default. Allows user to defile how estout will handle
+        :param argstring: cmd for estout if different from the default. Allows user to defile how estout will handle
         the results.
         :param fmt: (stata) string list of stata format for values in labels. Passed to estout as 'fmt()'
         :param title: (stata) title of the output. Passed to estout as 'title()'
@@ -482,14 +470,13 @@ class StataHelper:
         files = sorted(glob(os.path.join(src, "*.ster")))
         label_keys = labelsdict.keys()
         labelsdict = OrderedDict(labelsdict)
-        
 
         # --------------------------- Parameters in Parameters ---------------------------
 
+params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
+statapath = r"C:\Program Files\Stata18\utilities"
+cmd = "regress {y} {x}"
+s = StataHelper(stata_path=statapath, edition='mp', splash=True)
+s.parallel(cmd, params)
 
-if __name__ == '__main__':
-    params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
-
-    s = StataHelper(params)
-    s.que("regress {y} {x}")
 
