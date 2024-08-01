@@ -6,7 +6,7 @@ by name irrespective of the order of the arguments
 from multiprocessing import Pool, cpu_count
 from typing import Tuple, Dict, List
 from utils import read_yaml, config_yaml, cartesian
-
+from builtins import *
 
 class CarriagePrint:
     def __init__(self,lst):
@@ -20,7 +20,7 @@ def carriage_print(func):
     def wrapper(*args, **kwargs):
         results = func(*args, **kwargs)
         if isinstance(results, list):
-            res = [r['cmd'] for r in results]
+            # res = [r['cmd'] for r in results]
             return CarriagePrint(results)
         return results
     return wrapper
@@ -51,27 +51,3 @@ def parallelize(func, iterable, maxcores=None, buffer=1, *args):
             return p.map(func, iterable)
 
 
-class Parameters:
-    """
-    import parameters from a dictionary, list, yaml file, or string and expand the cartesian product of the parameters
-    """
-    def __init__(self):
-        self.params = None
-    #  --------------------------- Parameters in Parameters ---------------------------
-
-    def from_dict(self, params: Dict[str, List[str]]):
-        """
-        extract parameters from a dictionary and assert valid dtypes, then expand the cartesian product of the parameters
-        :param params: dictionary of strings
-        """
-        self.params = params
-        return self.params
-
-    def from_yaml(self, yamlpath: str | None):
-        """
-        extract parameters from YAML and assert valid dtypes, then expand the cartesian product of the parameters
-        :param yamlpath: path to yaml file or None. if None, use the parameters from the config file
-        """
-        params = read_yaml(yamlpath)
-        self.params = self.from_dict(params)
-        return self.params

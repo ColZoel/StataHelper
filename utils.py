@@ -2,14 +2,16 @@
 Tools for internal code processing
 """
 import itertools
+from builtins import *
 
 import yaml
 import os
 
 from itertools import product
 from typing import List, Tuple, Dict
-from wrappers import Parameters
+# from wrappers import Parameters
 from pathlib import Path
+
 
 class _DefaultMissing:
     '''
@@ -22,8 +24,8 @@ class _DefaultMissing:
 
 class OverwriteError(Exception):
     def __init__(self, filepath, numfiles):
-        self.message = f"OverwriteError: {filepath} already exists. This operation will remove alll {numfiles} files" \ 
-        "and saves new ones. If this is intended, set overwrite=True."
+        self.message = (f"OverwriteError: {filepath} already exists. This operation will remove all {numfiles} files"
+        "and saves new ones. If this is intended, set overwrite=True.")
         super().__init__(self.message)
 
 
@@ -78,13 +80,41 @@ def read_keys(str, dict):
         return None
 
 
-def get_params(params: Dict[str, List[str]]):
+class Parameters:
+    """
+    import parameters from a dictionary, list, yaml file, or string and expand the cartesian product of the parameters
+    """
+    def __init__(self):
+        self.params = None
+    #  --------------------------- Parameters in Parameters ---------------------------
+
+    def from_dict(self, params: Dict[str, List[str]]):
+        """
+        extract parameters from a dictionary and assert valid dtypes, then expand the cartesian product of the parameters
+        :param params: dictionary of strings
+        """
+        self.params = params
+        return self.params
+
+    def from_yaml(self, yamlpath: str | None):
+        """
+        extract parameters from YAML and assert valid dtypes, then expand the cartesian product of the parameters
+        :param yamlpath: path to yaml file or None. if None, use the parameters from the config file
+        """
+        params = read_yaml(yamlpath)
+        self.params = self.from_dict(params)
+        return self.params
+
+
+def get_params(params: Dict[str, List[str]]|str|None):
+    if params is None:
+        return None
     if isinstance(params, str):
         if params.split('.')[-1] not in ['yaml', 'yml']:
             raise ValueError("Expected a yaml  or yml file")
-        return Parameters().from_yaml(params).args
+        return Parameters().from_yaml(params)
     elif isinstance(params, dict):
-        return Parameters().from_dict(params).args
+        return Parameters().from_dict(params)
     else:
         raise TypeError(f"Unsupported iterable type {type(params)}."
                         " Expected a yaml file, dictionary, list of strings, or list of tuples.")
