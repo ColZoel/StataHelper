@@ -40,6 +40,13 @@ class ParallelizeWrapper(unittest.TestCase):
         assert parallelize(add, [(1, 2), (3, 4), (5, 6)], buffer=1) == [3, 7, 11]
 
 
+class Test_add_output(unittest.TestCase):
+    for p in params:
+        cmd = s._parse_cmd(cmd, params)
+
+
+
+
     class Test_SH_Parallel(unittest.TestCase):
         def test_params_kwargs(self):
             kwargs = {'quetly': True}

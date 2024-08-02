@@ -21,7 +21,7 @@ class StataHelper:
                  stata_path=None,
                  edition=None,
                  splash=None,
-                 set_estimates_dir=None,
+                 set_output_dir=None,
                  set_graph_format=None,
                  set_graph_size=None,
                  set_graph_show=None,
@@ -32,8 +32,8 @@ class StataHelper:
 
         # --------------------------- Module Parameters ---------------------------
         self.input_dir = None
-        self.estimates_dir = set_estimates_dir
-        self.overwrite_estimates = False
+        self.output_dir = set_output_dir
+        self.savename = ""
         self.cmd = None
         self.pmap = None
         self.queue = None
@@ -78,23 +78,22 @@ class StataHelper:
         if self.output_file is not None:
             pystata.config.set_output_file(self.output_file)
 
-        self._stata_initialized = pystata.config.is_stata_initialized()  # Doesn't seem to work in base Pystata module
+        self.stata_initialized = pystata.config.is_stata_initialized()  # Doesn't seem to work in base Pystata module
 
-        if not self.is_stata_initialized:
+        if not self.stata_initialized:
             raise SystemError("StataHelper is not initialized.")  # TODO: change to StataError
 
     def is_stata_initialized(self):
         """
         check if StataHelper is initialized: Wrapper for pystata.config.is_stata_initialized()
         """
-        return self._stata_initialized
+        return self.stata_initialized
 
     @staticmethod
     def status():
         """
         check the status of the StataHelper instance. Wrapper for pystata.config.status()
         """
-        import pystata
         return pystata.config.status()
 
     @staticmethod
@@ -292,22 +291,6 @@ class StataHelper:
 
         return None
 
-    def conditions(self, keys: List[str], sep="&", name="if"):
-        """
-        create a condition string for StataHelper
-        :type sep: str
-        :param keys: list of keys
-        :param sep: separator
-        :param name: name of the condition
-        :return: condition string
-        """
-        subdict = {k: self.pmap[k] for k in keys}
-        combinations = cartesian(subdict.values())
-        conditions = [f"{sep}".join(map(str, c)) if "" not in c else " ".join(map(str, c)) for c in combinations]
-        conditions = [f" if {c}" if c != "" else "" for c in conditions]
-        self.pmap[name] = conditions
-        self.pmap = {k: v for k, v in self.pmap.items() if k not in keys}
-        return self
 
     @staticmethod
     def _parse_cmd(cmd: str, params: Dict):
@@ -324,47 +307,13 @@ class StataHelper:
                 cmd = cmd.replace(f"{{{key}}}", value)
         return cmd
 
-    def _prep_task_dict(self, items_dict, keys, names):
-        subdict = OrderedDict({})  # preserve order
-        cmd = self._parse_cmd(self.cmd, items_dict)
-        idx = []
-        for key, value in items_dict.items():
-            if isinstance(self.pmap[key], str):
-                idx.append(0)
-            else:
-                idx.append(self.pmap[key].index(value))
-            if isinstance(value, list):
-                if key is not None and key in keys:
-                    if isinstance(names, list):
-                        for i, item in enumerate(value):
-                            subdict[item] = names[i]
-                    else:
-                        for i, item in enumerate(value):
-                            subdict[item] = names
-                else:
-                    subdict[key] = sep(value)
-            else:
-                subdict[key] = value
-        outname = "_".join(map(str, idx)) + ".ster"
+    def _prep_output(self):
+        if self.output_dir is None and self.input_dir is not None:
+            self.output_dir = os.path.join(self.input_dir, "output")
+        elif self.output_dir is None and self.input_dir is None:
+            self.output_dir = os.path.join(os.getcwd(), "output")
+        os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.estimates_dir is None and self.input_dir is not None:
-            self.estimates_dir = os.path.join(self.input_dir, "estimates")
-        elif self.estimates_dir is None and self.input_dir is None:
-            self.estimates_dir = os.path.join(os.getcwd(), "estimates")
-        os.makedirs(self.estimates_dir, exist_ok=True)
-
-        if len(glob(os.path.join(self.estimates_dir, "*.ster"))) > 0 and self.overwrite_estimates is False:
-            raise OverwriteError(self.estimates_dir, len(glob(os.path.join(self.estimates_dir, "*.ster"))))
-
-        # if self.overwrite_estimates:
-        #     for file in glob(os.path.join(self.estimates_dir, "*.ster")):
-        #         os.remove(file)
-
-        outname = os.path.join(self.estimates_dir, outname)
-
-        subdict['outname'] = outname
-        subdict['cmd'] = cmd
-        return subdict
 
     # @carriage_print
     def schedule(self, cmd: str, pmap: dict):
@@ -376,51 +325,55 @@ class StataHelper:
         :return: list of commands to be run in parallel
         """
 
+        # TODO: save schedule to a file and save to output_dir
         if not isinstance(cmd, str):
             raise TypeError(f" Invalid StataHelper command. Expected a string, got type {type(cmd)}.")
-        acutal_args = cmd.count("{")
-        map_args = len(pmap.keys())
-        if acutal_args > map_args:
-            raise ValueError(f"Expected {map_args} parameters, but received {acutal_args}.")
 
-        self.cmd = cmd
+        # validate only keys in cmd are in pmap
+        cmdkeys = literal_search(cmd)
+        bad_pmap_keys = [k for k in pmap.keys() if k not in cmdkeys]  # keys in pmap but not in cmd
+        bad_cmd_keys = [k for k in cmdkeys if k not in pmap.keys()] # keys in cmd but not in pmap
+
+        if bad_pmap_keys:
+            bad_pmap_keys = '\n'.join(bad_pmap_keys)
+            raise ValueError(f"The following key(s) are in pmap but not in cmd:\n"
+                             f"     {bad_pmap_keys}")
+        if bad_cmd_keys:
+            bad_cmd_keys = '\n'.join(bad_cmd_keys)
+            raise ValueError(f"The following key(s) are in cmd but not in pmap:\n"
+                             f"     {bad_cmd_keys}")
+
+
         cartesian_args = cartesian(pmap.values())
-        itemized = [dict(zip(pmap.keys(), c)) for c in cartesian_args]
-
-        self.queue = [self._parse_cmd(cmd, i) for i in itemized]
+        process_maps = [dict(zip(pmap.keys(), c)) for c in cartesian_args]
+        self.queue = [self._parse_cmd(cmd, i) for i in process_maps]
         self.qcount = len(self.queue)
+        self._prep_output()
+        self.cmd = cmd
+        self.pmap = pmap
         return self.queue
 
-    @staticmethod
-    def _parallel_task(self, paramsdict: Dict, *kwargs):
 
-        opt= "replace" if self.overwrite_estimates else "append"
+    def _parallel_task(self, idx, cmd, kwargs=None):
 
-        kwargs = kwargs[0]
+        name = self.savename + f"_{idx}"
+        cmd = cmd.replace("*", name)
+
+
         fmt = "%d %b %Y %H:%M"
         starttime = time.time()
-        print(f"{datetime.datetime.now().strftime(fmt)} :: {paramsdict['cmd']}")
-
-        xtra_cmd = ""
-
-        for key, value in paramsdict.items():
-            if key not in ['cmd', 'outname']:
-                xtra_cmd += f'estadd local {key} "{value}"\n'
-        xtra_cmd += "qui: sum `e(depvar)' if e(sample)\nqui: estadd scalar Mean =r(mean)\n"
+        print(f"{datetime.datetime.now().strftime(fmt)} :: Starting task {idx+1} of {self.qcount}")
         import pystata
-        pystata.stata.run(paramsdict['cmd'], **kwargs)
-        pystata.stata.run(xtra_cmd, **kwargs)
-        pystata.stata.run(f"estimates save {paramsdict['outname']}, {opt}", **kwargs)
+        pystata.stata.run(cmd, **kwargs)
 
-        endtime = time.time()
-        elasped = endtime - starttime
-        print(f"{datetime.datetime.now().strftime(fmt)} ({elasped:.4f}s) :: {paramsdict['cmd']}")
+        elapsed = time.time() - starttime
+        print(f"{datetime.datetime.now().strftime(fmt)} ({elapsed:.4f}s) :: Finished task {idx+1} of {self.qcount}")
         return
 
     def parallel(self,
                  cmd: str,
                  pmap: dict,
-                 overwrite_estimates=False,
+                 name: str = None,
                  maxcores: int = None,
                  safety_buffer: int = 1,
                  **kwargs):
@@ -428,55 +381,38 @@ class StataHelper:
         run a StataHelper command in parallel: wrapper for pystata.stata.Run() on multiple cores
         :param cmd: Template of StataHelper command
         :param pmap: dict where the keys correspond with the values in cmd to change and the values are lists of values
-        :param overwrite_estimates: bool, if True, overwrite existing estimates files. default is False.
+        :param name: str, base name of the output file to replace the wildcard '*'. None= "". Each process file is named
+        according to its index in the queue, e.g. 'output_1', 'output_2', etc.
         :param maxcores: int, maximum number of cores to use. default is the number of cores on the machine.
         :param safety_buffer: int, number of cores to leave available. default is 1.
         """
         self.cmd = cmd
         self.schedule(cmd, pmap)
-        self.overwrite_estimates = overwrite_estimates
+        self.savename = name if name is not None else ""
+
+        # add pystata kwargs if they exist. Enumerate to get index in queue
         if kwargs:
-            params = [(i, kwargs) for i in self.queue]
+            params = list(enumerate([(i, kwargs) for i in self.queue]))
+            #remove the interior tuple
+            params = [(i, j[0], j[1]) for i, j in params]
         else:
-            params = [i for i in self.queue]
+            params = list(enumerate([i for i in self.queue]))
+            params = [(i, j) for i, j in params]
+
+
         self.cores = limit_cores(params, maxcores, safety_buffer)
-        # TODO: add prep_task_dict to parallelize
         print(f"\n# cmds in queue: {self.qcount}    # cores: {self.cores}\n")
 
-        parallelize(func=self._parallel_task, iterable=params, maxcores=self.cores, buffer=safety_buffer)
+        parallelize(func=self._parallel_task, iterable=params, cores=self.cores)
 
         return self
 
-    @staticmethod
-    def results(src,  labelsdict, dst=None, argstring=None, fmt=None, title=None, keep_estimate_files=True, *args,
-                **kwargs):
-        """
-        create an excel file with the results of the parallelized StataHelper commands. This organizes each sheet by the
-        first key in the labelsdict in separate sheets.
-        :param src: source directory of the estimates files
-        :param dst: destination & name of the Excel file. default is cwd with the name 'results{currentdate}.xlsx'
-        :param labelsdict: dictionary of labels for the keys in the estimates files.
-        :param argstring: cmd for estout if different from the default. Allows user to defile how estout will handle
-        the results.
-        :param fmt: (stata) string list of stata format for values in labels. Passed to estout as 'fmt()'
-        :param title: (stata) title of the output. Passed to estout as 'title()'
-        :param keep_estimate_files: bool, if True, keep the estimates files after creating the excel file.
-         If False, delete the estimates files.
-        :param args: additional arguments for stata.run()
-        :param kwargs: additional keyword arguments for stata.run()
-        :return: None
-        """
-        print("\nSaving results to Excel file...\n")
-        files = sorted(glob(os.path.join(src, "*.ster")))
-        label_keys = labelsdict.keys()
-        labelsdict = OrderedDict(labelsdict)
-
         # --------------------------- Parameters in Parameters ---------------------------
-
-params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
-statapath = r"C:\Program Files\Stata18\utilities"
-cmd = "regress {y} {x}"
-s = StataHelper(stata_path=statapath, edition='mp', splash=True)
-s.parallel(cmd, params)
-
+#
+# params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
+# statapath = r"C:\Program Files\Stata18\utilities"
+# cmd = "regress {y} {x}"
+# s = StataHelper(stata_path=statapath, edition='mp', splash=True)
+#
+#
 

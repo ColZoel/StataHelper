@@ -11,7 +11,7 @@ from itertools import product
 from typing import List, Tuple, Dict
 # from wrappers import Parameters
 from pathlib import Path
-
+import re
 
 class _DefaultMissing:
     '''
@@ -35,6 +35,12 @@ def sep(iterable):
 
 def sep_var(estimate_file):
     return os.path.basename(estimate_file).split('_')[0]
+
+def literal(s):
+    return "{"+ s + "}"
+
+def literal_search(s):
+    return re.findall(r'\{(.+?)\}', s)
 
 
 def is_pathlike(string: str):

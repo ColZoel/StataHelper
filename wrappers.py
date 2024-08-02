@@ -26,25 +26,20 @@ def carriage_print(func):
     return wrapper
 
 
-def parallelize(func, iterable, maxcores=None, buffer=1, *args):
+def parallelize(func, iterable, cores, *args):
     """
     wrapper for Pool.map or Pool.starmap
     :param func:  function to be mapped
     :param iterable:  iterable to be mapped, either a tuple or a list
-    :param maxcores: maximum number of cores to use
-    :param buffer: number of cores to leave available
+    :param cores:  number of cores to use
     :return: list of results
     """
-
-    cores = len(iterable)
-    if maxcores is not None and cores > maxcores:
-        cores = maxcores
-    cores = cpu_count-buffer if cores > cpu_count() and buffer is not None else cores
 
     if args:
         iterable = [(i, *args) for i in iterable]
 
     with Pool(cores) as p:
+        import pystata
         if isinstance(iterable[0], tuple):
             return p.starmap(func, iterable)
         else:
