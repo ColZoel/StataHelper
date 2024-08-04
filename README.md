@@ -1,3 +1,4 @@
+[![StataHelper](https://github.com/ColZoel/StataHelper/actions/workflows/StataHelper.yml/badge.svg)](https://github.com/ColZoel/StataHelper/actions/workflows/StataHelper.yml)
 
 # StataHelper
 ## A Simplified StataHelper wrapper and Parallelization Library for Python
