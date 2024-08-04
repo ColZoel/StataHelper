@@ -3,10 +3,9 @@ process StataHelper commands for each parallel process by parsing the arguments 
 by name irrespective of the order of the arguments
 
 """
-from multiprocessing import Pool, cpu_count
-from typing import Tuple, Dict, List
-from utils import read_yaml, config_yaml, cartesian
+from multiprocessing import Pool
 from builtins import *
+from multiprocessing import cpu_count
 
 class CarriagePrint:
     def __init__(self,lst):
@@ -26,7 +25,7 @@ def carriage_print(func):
     return wrapper
 
 
-def parallelize(func, iterable, cores, *args):
+def parallelize(func, iterable, cores=None, *args):
     """
     wrapper for Pool.map or Pool.starmap
     :param func:  function to be mapped
@@ -34,12 +33,12 @@ def parallelize(func, iterable, cores, *args):
     :param cores:  number of cores to use
     :return: list of results
     """
-
+    if cores is None:
+        cores = len(iterable) if len(iterable) < cpu_count() else cpu_count()
     if args:
         iterable = [(i, *args) for i in iterable]
 
     with Pool(cores) as p:
-        import pystata
         if isinstance(iterable[0], tuple):
             return p.starmap(func, iterable)
         else:

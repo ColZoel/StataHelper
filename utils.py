@@ -15,7 +15,7 @@ import re
 
 class _DefaultMissing:
     '''
-    StataHelper class. Here for replication.
+    Pystata class. Here for replication.
     https://www.stata.com/python/pystata18/stata.html#ref-defaultmissing
     '''
     def __repr__(self):
@@ -86,46 +86,6 @@ def read_keys(str, dict):
         return None
 
 
-class Parameters:
-    """
-    import parameters from a dictionary, list, yaml file, or string and expand the cartesian product of the parameters
-    """
-    def __init__(self):
-        self.params = None
-    #  --------------------------- Parameters in Parameters ---------------------------
-
-    def from_dict(self, params: Dict[str, List[str]]):
-        """
-        extract parameters from a dictionary and assert valid dtypes, then expand the cartesian product of the parameters
-        :param params: dictionary of strings
-        """
-        self.params = params
-        return self.params
-
-    def from_yaml(self, yamlpath: str | None):
-        """
-        extract parameters from YAML and assert valid dtypes, then expand the cartesian product of the parameters
-        :param yamlpath: path to yaml file or None. if None, use the parameters from the config file
-        """
-        params = read_yaml(yamlpath)
-        self.params = self.from_dict(params)
-        return self.params
-
-
-def get_params(params: Dict[str, List[str]]|str|None):
-    if params is None:
-        return None
-    if isinstance(params, str):
-        if params.split('.')[-1] not in ['yaml', 'yml']:
-            raise ValueError("Expected a yaml  or yml file")
-        return Parameters().from_yaml(params)
-    elif isinstance(params, dict):
-        return Parameters().from_dict(params)
-    else:
-        raise TypeError(f"Unsupported iterable type {type(params)}."
-                        " Expected a yaml file, dictionary, list of strings, or list of tuples.")
-
-
 def progress(text, i, count):
     i = i+1
     l= 20
@@ -138,7 +98,7 @@ def progress(text, i, count):
     return None
 
 
-def limit_cores(iterable, maxcores=None, buffer=1):
+def limit_cores(iterable, maxcores=None, buffer=1) -> int:
     cores = len(iterable)
     if maxcores is not None and cores > maxcores:
         cores = maxcores
