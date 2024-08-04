@@ -1,5 +1,5 @@
 '''
-For use with debugers. Run this script in the terminal to test the StataHelper class.
+Test Example to run a simple parallezied regression in Stata
 '''
 
 from StataHelper import StataHelper
@@ -10,4 +10,5 @@ estimatesdir = "D:\Collin\statahelper"
 
 if __name__ == '__main__':
     s = StataHelper(stata_path=statapath, edition='mp', splash=True,  set_output_dir=estimatesdir)
+    s.run("use auto.dta", quietly=True)
     s.parallel(cmd, params, quietly=False)
