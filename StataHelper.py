@@ -40,7 +40,7 @@ class StataHelper:
         self.qcount = None
 
         # --------------------------- System/ Parallelization Parameters ---------------------------
-        self.cores = cpu_count()
+        self.cores = os.cpu_count()
         self.safety_buffer = 1
         self.maxcores = self.cores-self.safety_buffer
 
@@ -104,12 +104,12 @@ class StataHelper:
         import pystata
         return pystata.config.close_output_file()
 
-    @staticmethod
-    def run(cmd: str, *args, **kwargs):
+    def run(self, cmd: str, *args, **kwargs):
         """
         run a single StataHelper command. wrapper for pystata.stata.run()
         :param cmd: StataHelper command
         """
+        sys.path.append(self.stata_path)
         import pystata
         return pystata.stata.run(cmd, *args, **kwargs)
 
@@ -363,7 +363,11 @@ class StataHelper:
         fmt = "%d %b %Y %H:%M"
         starttime = time.time()
         print(f"{datetime.datetime.now().strftime(fmt)} :: Starting task {idx+1} of {self.qcount}")
+
+
+        
         import pystata
+        pystata.config.init(edition='mp', splash=True)
         pystata.stata.run(cmd, **kwargs)
 
         elapsed = time.time() - starttime
