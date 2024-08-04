@@ -1,6 +1,6 @@
 
 # StataHelper
-## A Simplified StataHelper wrapper and Parallelization Library for Python
+## A Simplified Python wrapper and Parallelization Library for Pystata
 
 ### Table of Contents
 - [Installation](#installation)
