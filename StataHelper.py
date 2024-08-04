@@ -150,11 +150,16 @@ class StataHelper:
         """
         cmd = "use"
         if columns is not None:
-            columns = " ".join(columns)
+            if isinstance(columns, list):
+                columns = " ".join(columns)
+            elif isinstance(columns, str):
+                columns = columns
+            else:
+                raise ValueError("columns must be a list or string.")
             cmd = cmd + columns
         if obs is not None:
             cmd = cmd + " in " + obs
-        if columns is None or obs is None:
+        if columns is not None or obs is not None:
             cmd = cmd + " using"
         cmd = cmd + " " + dta
         self.run(cmd, **kwargs)
@@ -223,6 +228,29 @@ class StataHelper:
             pystata.stata.pdataframe_to_data(self.data, force=force)
 
         return self
+
+    @staticmethod
+    def use_as_pandas(frame: str | None = None,
+                      var: str | int | list = None,
+                      obs: str | int | list = None,
+                      selectvar: str | int | list = None,
+                      valuelabel: bool = False,
+                      missingval: str = _DefaultMissing(),
+                      *args, **kwargs) -> pd.DataFrame:
+        """
+        return the data as a pandas dataframe.
+        Wrapper for pystata.stata.frame_to_pdataframe and pystata.stata.data_to_pdataframe
+        https://www.stata.com/python/pystata18/stata.html
+        """
+
+        if frame is not None:
+                data = pystata.stata.frame_to_pdataframe(frame, var=var, obs=obs, selectvar=selectvar,
+                                                               valuelabel=valuelabel, missingval=missingval)
+        else:
+            data = pystata.stata.data_to_pdataframe(var=var, obs=obs, selectvar=selectvar,
+                                                                valuelabel=valuelabel, missingval=missingval)
+        return data
+
 
     @staticmethod
     def save(path: str, frame: str | None = None,
