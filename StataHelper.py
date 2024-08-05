@@ -148,7 +148,7 @@ class StataHelper:
         :param obs: observations to load
         :return: None. Data is loaded into StataHelper
         """
-        cmd = "use"
+        cmd = "use "
         if columns is not None:
             if isinstance(columns, list):
                 columns = " ".join(columns)
@@ -158,10 +158,12 @@ class StataHelper:
                 raise ValueError("columns must be a list or string.")
             cmd = cmd + columns
         if obs is not None:
-            cmd = cmd + " in " + obs
+            if isinstance(obs, int):
+                obs = str(obs)
+            cmd = f"{cmd} in {obs}"
         if columns is not None or obs is not None:
             cmd = cmd + " using"
-        cmd = cmd + " " + dta
+        cmd = cmd + f' "{dta}"'
         self.run(cmd, **kwargs)
         print(f"\n\n{dta} loaded.\n")
         return self
@@ -410,8 +412,8 @@ class StataHelper:
                  safety_buffer: int = 1,
                  **kwargs):
         """
-        run a StataHelper command in parallel: wrapper for pystata.stata.Run() on multiple cores
-        :param cmd: Template of StataHelper command
+        run a StataHelper command in parallel
+        :param cmd: Template of Stata command
         :param pmap: dict where the keys correspond with the values in cmd to change and the values are lists of values
         :param name: str, base name of the output file to replace the wildcard '*'. None= "". Each process file is named
         according to its index in the queue, e.g. 'output_1', 'output_2', etc.
@@ -439,12 +441,4 @@ class StataHelper:
 
         return self
 
-        # --------------------------- Parameters in Parameters ---------------------------
-#
-# params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
-# statapath = r"C:\Program Files\Stata18\utilities"
-# cmd = "regress {y} {x}"
-# s = StataHelper(stata_path=statapath, edition='mp', splash=True)
-#
-#
 
