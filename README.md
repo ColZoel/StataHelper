@@ -1,4 +1,3 @@
-[![StataHelper](https://github.com/ColZoel/StataHelper/actions/workflows/StataHelper.yml/badge.svg)](https://github.com/ColZoel/StataHelper/actions/workflows/StataHelper.yml)
 
 # StataHelper
 ## A Simplified Python wrapper and Parallelization Library for Pystata
@@ -36,7 +35,7 @@ pip install .
 ```
 ### Dependencies
 - Python 3.9+
-- StataHelper 16+
+- Stata 16+
 - Pandas
 - Numpy
 - yaml
