@@ -1,71 +1,76 @@
-import unittest
+import pytest
+from builtins import ValueError
+
 from StataHelper import StataHelper
 
 params = {'y': ['mpg'], 'x': [['weight', 'length'], ['weight']]}
 statapath = r"C:\Program Files\Stata18\utilities"
 cmd = "regress {y} {x}\nestimates store *_{y}_{x}"
 estimatesdir = "D:\Collin\statahelper"
-
+dta = f'{statapath.replace("utilities", "auto.dta")}'
 
 s = StataHelper(stata_path=statapath, edition='mp', splash=True,  set_output_dir=estimatesdir)
 
-class Test_Use(unittest.TestCase):
+def test_load():
+    s.use(dta)# add assertion here
 
-    # TODO: Set assert statements
-    def test_load(self):
-        s.use("auto.dta")# add assertion here
+def test_columns_list():
+    s.use(dta, columns=['mpg', 'weight'])
 
-    def test_columns_list(self):
-        s.use("auto.dta", columns=['mpg', 'weight'])
+def test_columns_string():
+    s.use(dta, columns='mpg weight')
 
-    def test_columns_string(self):
-        s.use("auto.dta", columns='mpg weight')
+def test_columns_list_error():
+    with pytest.raises(ValueError):
+        s.use(dta, columns=1)
 
-    def test_columns_list_error(self):
-        with self.assertRaises(ValueError):
-            s.use("auto.dta", columns=1)
-
-    def test_obs(self):
-        s.use("auto.dta", obs=10)
-
-class Test_use_file(unittest.TestCase):
-    """
-    Tests functions that send data from pandas dataframes to Stata
-    """
-    def test_use_file(self):
-        pass
-
-    def test_use_file_error(self):
-        with self.assertRaises(ValueError):
-            s.use_file("auto.dta")
+def test_obs1():
+    s.use(dta, obs=10)
 
 
-class Test_use_as_pandas(unittest.TestCase):
-    def test_use_as_pandas(self):
-        s.use("auto.dta")
-        df = s.use_as_pandas()
-        self.assertEqual(df.shape, (74, 12))
-
-    def test_use_as_pandas_frame(self):
-        s.use("auto.dta")
-        df = s.use_as_pandas(frame="newframe")
-        self.assertEqual(df.shape, (74, 12))
+def test_obs2():
+    s.use(dta, obs="10")
 
 
-    def test_use_as_pandas_error(self):
-        with self.assertRaises(ValueError):
-            s.use_as_pandas()
+def test_obs3():
+    s.use(dta, obs="1/10")
 
-class Test_Save(unittest.TestCase):
-    def test_save(self):
-        s.save("auto.dta")
 
-    def test_save_error(self):
-        with self.assertRaises(ValueError):
-            s.save(1)
+def test_obs_cols():
+    s.use(dta, obs="1/10", columns=['mpg', 'weight'])
 
 
 
-if __name__ == '__main__':
-    unittest.main()
 
+# Test functions that send data from pandas dataframes to Stata
+
+def test_use_file():
+    pass
+
+def test_use_file_error():
+    with pytest.raises(ValueError):
+        s.use_file(dta)
+
+
+def test_use_as_pandas():
+    s.use(dta)
+    df = s.use_as_pandas()
+    assert df.shape == (74, 12)
+
+def test_use_as_pandas_frame():
+    s.use(dta)
+    df = s.use_as_pandas(frame="newframe")
+    assert df.shape == (74, 12)
+
+
+def test_use_as_pandas_error():
+    with pytest.raises(ValueError):
+        s.use_as_pandas()
+
+
+def test_save():
+    s.save(dta)
+
+def test_save_error():
+    with pytest.raises(ValueError):
+        s.save(1)
