@@ -35,17 +35,18 @@ pip install .
 ```
 ### Dependencies
 - Python 3.9+
-- Stata 16+
+- Stata 16+ (Pystata is shipped with most Stata licenses starting Stata 16)
 - Pandas
 - Numpy
-- yaml
-
 
 
 ## Introduction
-StataHelper is a Python package that simplifies the process of running StataHelper code from Python.
-The package provides a simple interface to run StataHelper code, pass data between Python and StataHelper, 
-and parallelize StataHelper code. The package is designed to be simple to use and easy to integrate into existing Python codebases.
+Stata is a powerful package that boasts an impressive array of statistical tools and data manipulation capabilities.
+While the software itself is known for its user-friendly interface, the same cannot be said for its Python wrapper, Pystata.
+Intended especially for those with minimal Python experience, StataHelper is a Python wrapper around Pystata 
+designed to simplify the interface and provide parallelization capabilities.
+
+
 
 Let's consider a use case.
 
