@@ -142,7 +142,7 @@ class StataHelper:
 
     def use(self, dta: str, columns: List[str] | None = None, obs: str | None = None, **kwargs):
         """
-        Inline method to use data in StataHelper
+        Inline method to use data in Stata
         :param dta: str dta path
         :param columns: list of columns to use when loading data
         :param obs: observations to load
@@ -344,7 +344,6 @@ class StataHelper:
             self.output_dir = os.path.join(os.getcwd(), "output")
         os.makedirs(self.output_dir, exist_ok=True)
 
-
     # @carriage_print
     def schedule(self, cmd: str, pmap: dict):
         """
@@ -373,7 +372,6 @@ class StataHelper:
             raise ValueError(f"The following key(s) are in cmd but not in pmap:\n"
                              f"     {bad_cmd_keys}")
 
-
         cartesian_args = cartesian(pmap.values())
         process_maps = [dict(zip(pmap.keys(), c)) for c in cartesian_args]
         self.queue = [self._parse_cmd(cmd, i) for i in process_maps]
@@ -383,19 +381,15 @@ class StataHelper:
         self.pmap = pmap
         return self.queue
 
-
     def _parallel_task(self, idx, cmd, kwargs=None):
 
         name = self.savename + f"_{idx}"
         cmd = cmd.replace("*", name)
 
-
         fmt = "%d %b %Y %H:%M"
         starttime = time.time()
         print(f"{datetime.datetime.now().strftime(fmt)} :: Starting task {idx+1} of {self.qcount}")
 
-
-        
         import pystata
         pystata.config.init(edition='mp', splash=True)
         pystata.stata.run(cmd, **kwargs)
@@ -427,12 +421,11 @@ class StataHelper:
         # add pystata kwargs if they exist. Enumerate to get index in queue
         if kwargs:
             params = list(enumerate([(i, kwargs) for i in self.queue]))
-            #remove the interior tuple
-            params = [(i, j[0], j[1]) for i, j in params]
+
+            params = [(i, j[0], j[1]) for i, j in params]  # remove the interior tuple
         else:
             params = list(enumerate([i for i in self.queue]))
             params = [(i, j) for i, j in params]
-
 
         self.cores = limit_cores(params, maxcores, safety_buffer)
         print(f"\n# cmds in queue: {self.qcount}    # cores: {self.cores}\n")

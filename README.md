@@ -3,19 +3,39 @@
 ## A Simplified Python wrapper and Parallelization Library for Pystata
 
 ### Table of Contents
-- [Installation](#installation)
-- [Introduction](#introduction)
-- [Parallelization](#parallelization)
-    - [Brace Notation](#brace-notation)
-    - [Multi-level Parameters](#multi-level-fixed-effects)
-    - [Multiline Stata Command](#multiline-stata-code)
-    - [Conditional Statements](#conditional-statements)
-- [Unified Interface](#unified-interface)
-- [Documentation](#documentation)
-- [Class: StataHelper](#class-stata)
-    - [StataHelper.run](#statarunself-code)
-    - [StataHelper.parallel](#stataparallelself-code-values-stata_wildcardfalse-max_coresnone-safety_buffer1-show_batchesfalse)
-    
+- [StataHelper](#StataHelper)
+  - [Installation](#Installation)
+    - [From PyPi](#From-PyPi)
+    - [Dependencies](#Dependencies)
+  - [Introduction](#Introduction)
+    - [Use Case: Looped Regressions](#Use-Case-Looped-Regressions)
+  - [Usage](#Usage)
+    - [Unified Interface](#Unified-Interface)
+    - [Parallelization](#Parallelization)
+      - [Brace Notation](#Brace-Notation)
+      - [Multi-level Parameters](#Multi-level-Parameters)
+      - [Multiline Stata Code](#Multiline-Stata-Code)
+      - [Conditional Statements](#Conditional-Statements)
+      - [Saving Estimation Results](#Saving-Estimation-Results)
+  - [Documentation](#Documentation)
+    - [Class: StataHelper](#Class-StataHelper)
+    - [Methods](#Methods)
+    - [StataHelper.is_stata_initialized](#StataHelperis_stata_initializedself)
+    - [StataHelper.status](#StataHelperstatusself)
+    - [StataHelper.close_output_file](#StataHelperclose_output_fileself)
+    - [StataHelper.get_return](#StataHelperget_returnself)
+    - [StataHelper.get_ereturn](#StataHelperget_ereturnself)
+    - [StataHelper.get_sreturn](#StataHelperget_sreturnself)
+    - [StataHelper.run](#StataHelperrunself-cmd-kwargs)
+    - [StataHelper.use](#StataHelperuseself-data-columnsnone-obsnone-kwargs)
+    - [StataHelper.use_file](#StataHelperuse_fileself-path-frameNone-forceFalse-args-kwargs)
+    - [StataHelper.use_as_pandas](#StataHelperuse_as_pandasself-frameNone-varNone-obsNone-selectvarNone-valuelabelsNone-missinglabels_DefaultMissing-args-kwargs)
+    - [StataHelper.save](#StataHelpersave_path-frameNone-varNone-obsNone-selectvarNone-valuelabelNone-missinglabelNone-missval_DefaultMissing-args-kwargs)
+    - [StataHelper.schedule](#StataHelperscheduleself-cmd-pmap_)
+    - [StataHelper.parallel](#StataHelperparallelself-cmd-pmap-nameNone-max_coresNone-safety_buffer1)
+- [Contributing](#Contributing)
+- [License](#License)
+- [Author](#Author)
 ## Installation
 There are two ways to install the package. The first is to install the package from PyPi using pip. 
 The second is to clone the repository.
@@ -91,7 +111,7 @@ This inefficiency is where StataHelper comes in.
 ```python
 from StataHelper import StataHelper
 path = "C:/Program Files/Stata17/utilties"
-stata = StataHelper(stata_path=path, splash=False)
+s = StataHelper(stata_path=path, splash=False)
 results = s.parallel("reg {y} {x} {control}", {'y': ['depvar1', 'depvar2', 'depvar3'],
                                                'x': ['indepvar1', 'indepvar2', 'indepvar3'],
                                                'control': ['controlvar1', 'controlvar2', 'controlvar3']})
@@ -105,6 +125,61 @@ Additionally, StataHelper provides users a simplified interface to interact with
 cannot be imported directly to StataHelper, like Apache Parquet files, and can run StataHelper code from a string or a file.
 
 # Usage
+
+
+## Unified Interface
+You can interact with StataHelper in nearly the same way you would interact with pystata. In pystata you would configure the
+pystata instance as follows (assuming you have not added Stata to your PYTHONPATH):
+
+```python
+import sys
+
+stata_path = "C:/Program Files/Stata17/utilties"
+sys.path.append(stata_path)
+
+from pystata import config
+
+config.init(edition='mp', splash=False)
+config.set_graph_format('svg')
+config.set_graph_size(800, 600)
+config.set_graph_show(False)
+config.set_command_show(False)
+config.set_autocompletion(False)
+config.set_streaming_output(False)
+config.set_output_file('output.log')
+
+from pystata import stata
+
+stata.run('di "hello world"')
+stata.run("use data.dta")
+stata.run("reg y x")
+config.close_output_file()  # Close the Stata log
+```
+
+Notice how we have to configure the stata instance before we can even call import the `stata` module, 
+and the stata instance requires a separate `config` object to be configured. 
+
+In StataHelper, you can configure the Stata instance directly in the constructor.
+
+```python
+from StataHelper import StataHelper
+
+s = StataHelper(splash=False,
+                    edition='mp',
+                    set_graph_format='svg',
+                    set_graph_size=(800, 600),
+                    set_graph_show=False,
+                    set_command_show=False,
+                    set_autocompletion=False,
+                    set_streaming_output=False,
+                    set_output_file='output.log')
+s.run("di hello world")
+s.run("use data.dta")
+s.run("reg y x")
+s.close_output_file()
+```
+
+
 ## Parallelization
 StataHelper provides a simple interface to parallelize StataHelper code. Just as with pystata's `run` method, 
 you may pass a string of StataHelper code to the `parallel` method. StataHelper is designed to read placeholders in the stata
@@ -170,254 +245,231 @@ values = {'y': ['depvar1', 'depvar2', 'depvar3'],
           'x': ['indepvar1', 'indepvar2', 'indepvar3'],
           'control': ['controlvar1', 'controlvar2', 'controlvar3'],
           'subsets': ['var4<=2023 & var5==1', 'var4>2023 | var5==0']}
+
 results = stata.parallel("reg {y} {x} {control} if {subsets}", values)
 ```
 
-## Unified Interface
-You can interact with StataHelper in nearly the same way you would interact with pystata. In pystata you would configure the
-pystata instance as follows (assuming you have not added Stata to your PYTHONPATH):
-
-```python
-import sys
-
-stata_path = "C:/Program Files/Stata17/utilties"
-sys.path.append(stata_path)
-
-from pystata import config
-
-config.init(edition='mp', splash=False)
-config.set_graph_format('svg')
-config.set_graph_size(800, 600)
-config.set_graph_show(False)
-config.set_command_show(False)
-config.set_autocompletion(False)
-config.set_streaming_output(False)
-config.set_output_file('output.log')
-
-from pystata import stata
-
-stata.run('di "hello world"')
-stata.run("use data.dta")
-stata.run("reg y x")
-config.close_output_file()  # Close the Stata log
-```
-
-Notice how we have to configure the stata instance before we can even call import the `stata` module, 
-and the stata instance requires a separate `config` object to be configured. 
-
-In StataHelper, you can configure the Stata instance directly in the constructor.
-
+### Saving Estimation Results
+Estimation commands can be saved to a file by specifying the `est save` command in `cmd`. 
+The `parallel` method will save the results to a folder titled `name` in `set_output_dir` if `name` is not `None` and 
+an asterisk `*` is present in `cmd`.
+All files in this directory are also called `name`, but with a unique identifier appended to the end. 
+e.g.
 ```python
 from StataHelper import StataHelper
+s = StataHelper(edition='mp', splash=False, set_output_dir='C:/Users/me/Documents/StataOutput')
 
-s = StataHelper(splash=False,
-                    edition='mp',
-                    set_graph_format='svg',
-                    set_graph_size=(800, 600),
-                    set_graph_show=False,
-                    set_command_show=False,
-                    set_autocompletion=False,
-                    set_streaming_output=False,
-                    set_output_file='output.log')
-s.run("di hello world")
-s.run("use data.dta")
-s.run("reg y x")
-s.close_output_file()
+...
+
+s.parallel("eststo: reg y {x} if {subset}\nest save *", values, name='regressions')
+```
+produces the following files in `C:/Users/me/Documents/StataOutput/regressions`:
+```
+regressions_1.ster
+regressions_2.ster
+regressions_3.ster
+regressions_4.ster
+regressions_5.ster
+regressions_6.ster
+```
+You can easily load these files into Stata by looping over the files in the directory and using the `est restore` command.
+After which, you can use the `esttab` command to create a table of the results just as if you had run the regressions in a
+loop in Stata.
+
+```stata
+
+
+In general, this method can be used to run many types of stata commands in parallel, not just regressions.
+You might, for example, want to run a series of `tabstat` commands to summarize the data and save the results 
+to a file. 
+
+```python 
+from StataHelper import StataHelper
+s = StataHelper(edition='mp', splash=False, set_output_dir='C:/Users/me/Documents/StataOutput')
+
+values = {'var': ['var1', 'var2', 'var3', 'var4', 'var5']}
+s.parallel("tabstat {var}, stat(mean sd) save *.xlsx", values, name='table1')
+```
+produces the following files in `C:/Users/me/Documents/StataOutput/table1`:
+```
+table1_1.xlsx
+table1_2.xlsx
+table1_3.xlsx
+table1_4.xlsx
+table1_5.xlsx
 ```
 
-
-```python
-import StataHelper
-
-stata = StataHelper.StataHelper(config='config.yaml')
-stata.run("di hello world")
-```
-
-You can also get the same effect by passing a dictionary with the same keys to the constructor, which 
-effectively how the YAML is parsed under the hood.
-
-```python
-import StataHelper
-
-dict = {'path': "C:/Program Files/Stata17/StataMP-64.exe",
-        'splash': False,
-        'edition': 'mp',
-        'set_graph_format': 'svg',
-        'set_graph_size': [800, 600],
-        'set_graph_show': False,
-        'set_command_show': False,
-        'set_autocompletion': False,
-        'set_streaming_output': False
-        }
-stata = StataHelper.StataHelper(config=dict)
-```
-All values not specified either as an argument or in the YAML file default to the pystata defaults. See the
-[pystata documentation](https://www.stata.com/python/pystata18/config.html).
 
 # Documentation
-<div style="color:red; border:0 solid red; padding:5px;">
-Note: Wrappers for StataNow functionalities have not been tested. They are included for completeness. See pystata documentation for more information.
-See below for information about contributing to the project.
-</div>
+
+<style>
+ul {
+    list-style-type: none;
+}
+</style>
+
+<!-- ************* WARNING ************  -->
+
+<p><span style="color:red; border:0 solid red; padding:5px;">Note: Wrappers and arguments for StataNow functionalities have not been tested. They are included for completeness. 
+See Pystata documentation for more information. See below for information about contributing to the project.</span></p>
+
+
+
+<!-- ************* StataHelper Class ************  -->
 
 ## Class: StataHelper
- **StataHelper**(_self,
-                 edition=None,
-                 splash=None,
-                 set_graph_format=None,
-                 set_graph_size=None,
-                 set_graph_show=None,
-                 set_command_show=None,
-                 set_autocompletion=None,
-                 set_streaming_output=None,
-                 set_output_file=None)_
+<h3>StataHelper(_self, edition=None, splash=None, set_output_dir=None, set_graph_format=None, set_graph_size=None, set_graph_show=None, 
+set_command_show=None, set_autocompletion=None, set_streaming_output=None, set_output_file=None</em> </p></h3>
+<ul>
+<li><strong>edition</strong><em>  (str)</em> :
+The edition of Stata to use.</li>
+<li><strong>splash</strong><em>  (bool)</em> :  Whether to show the splash screen when StataHelper is opened.
+    It is recommended not use this when running parallel, as it will repeat for every core that is opened.</li>
+<li><strong>set_output_dir</strong><em>  (str)</em> : 
+    The directory to save the output files such as estimation files. A new folder housing these files is created in this directory.</li>
+<li><strong>set_graph_format</strong><em>   (str)</em> : pystata.config.set_graph_format. 
+    The format of the graphs to be saved.</li>
+<li><strong>set_graph_size</strong><em>  (tup)</em> : pystata.config.set_graph_size. The size of the graphs to be saved.</li>
+<li><strong>set_graph_show</strong><em>  (bool)</em> : pystata.config.set_graph_show. 
+    Whether to show the graphs in the StataHelper window.</li>
+<li><strong>set_command_show</strong><em>  (bool)</em> : pystata.config.set_command_show. 
+    Whether to show the commands in the StataHelper window.</li>
+<li><strong>set_autocompletion</strong><em>  (bool)</em> : pystata.config.set_autocompletion. 
+    Whether to use autocompletion in the StataHelper window.</li>
+<li><strong>set_streaming_output</strong>: pystata.config.set_streaming_output. 
+    Whether to stream the output to the console.</li>
+<li><strong>set_output_file</strong><em>  (str)</em> : pystata.config.set_output_file. 
+    Where to save the Stata log file.</li>
+</ul>
 
-**edition**_(str)_ : The edition of StataHelper to use. 
-
- **splash**_(bool)_:  Whether to show the splash screen when StataHelper is opened. It is recommended not use this when running parallel, 
-as it will repeat for every core that is opened.
- 
- **set_graph_format**_(str)_: <br>pystata.config.set_graph_format. The format of the graphs to be saved.
-
- **set_graph_size**_(tup)_: pystata.config.set_graph_size. The size of the graphs to be saved.
-
- **set_graph_show**_(bool)_: pystata.config.set_graph_show. Whether to show the graphs in the StataHelper window.
-
- **set_command_show**_(bool)_: pystata.config.set_command_show. Whether to show the commands in the StataHelper window.
-
- **set_autocompletion**_(bool)_: pystata.config.set_autocompletion. Whether to use autocompletion in the StataHelper window.
-
- **set_streaming_output**: pystata.config.set_streaming_output. Whether to stream the output to the console.
-
- **set_output_file**_(str)_: pystata.config.set_output_file. Where to save the Stata log file.
+All values not specified as an argument default to the pystata defaults. See the
+[pystata documentation](https://www.stata.com/python/pystata18/config.html).
 
 ## Methods
 
+<h3>StataHelper.is_stata_initialized(_self_)</h3>
+<ul>
+<li>Wrapper for <code>pystata.stata.is_initialized()</code>.</li><br>
+<li>Returns True if Stata is initialized, False otherwise.</li>
+</ul>
 
-### **StataHelper.is_stata_initialized**(_self_)
-Wrapper for` pystata.stata.is_initialized()`.
-Returns True if Stata is initialized, False otherwise.
 
-### **StataHelper.status**(_self_)
-Wrapper for `pystata.stata.status()`.
-Prints the status of the Stata instance to the console. Returns None.
+<h3>StataHelper.status(_self_)</h3>
+<ul>
+<li>Wrapper for <code>pystata.stata.status()</code>.</li><br>
+<li>Prints the status of the Stata instance to the console. Returns None.</li>
+</ul>
 
-### **StataHelper.close_output_file**(_self_)
-Wrapper for `pystata.stata.close_output_file()`.
-Closes the Stata log file.
+<h3>StataHelper.close_output_file(_self_)</h3>
+<ul>
+<li>Wrapper for <code>pystata.stata.close_output_file()</code>.</li><br>  
+<li>Closes the Stata log file.</li>
+</ul>
 
 ### **StataHelper.get_return**(_self_)
-Wrapper for `pystata.stata.get_return()`.
-Returns the `return` values from the last Stata command as a dictionary.
+
+<ul>
+<li>Wrapper for <code>pystata.stata.get_return()</code>.</li><br>
+<li>Returns the <code>return</code> values from the last Stata command as a dictionary.</li>
+</ul>
 
 ### **StataHelper.get_ereturn**(_self_)
-Wrapper for `pystata.stata.get_ereturn()`.
-Returns the `e(return)` values from the last Stata command as a dictionary.
+<ul>
+<li>Wrapper for <code>pystata.stata.get_ereturn()</code>.</li><br>
+<li>Returns the <code>e(return)</code> values from the last Stata command as a dictionary.</li>
+</ul>
 
 
 ### **StataHelper.get_sreturn**(_self_)
-Wrapper for `pystata.stata.get_sreturn()`.
-Returns the `sreturn` values from the last Stata command as a dictionary.
+<ul>
+<li>Wrapper for <code>pystata.stata.get_sreturn()</code>.</li><br>
+<li>Returns the <code>sreturn</code> values from the last Stata command as a dictionary.</li>
+</ul>
 
 
 ### **StataHelper.run**(_self, cmd, **kwargs_)
-Wrapper for `pystata.stata.run()`. Runs cmd in the StataHelper window.
-<br>**cmd**_(str)_: Stata command to run
+<ul>
+<li>Wrapper for <code>pystata.stata.run()</code>.</li><br>
+<li>Runs cmd in the Stata window.</li>
+<li><strong>cmd</strong><em>  str</em> : Stata command to run.</li>
+<li><strong>**kwargs</strong><em>  dict</em> : Additional arguments to pass to the Stata command.</li>
+</ul>
 
 ### **StataHelper.use(_self, data, columns=None, obs=None, \*\*kwargs_)**
-Pythonic method to load a dataset into Stata. equivalent to `use` command in Stata.
-<br>**data**_(str)_: The path to the data file to load into Stata.
-<br>**columns**_(list or str)_: The columns to load into Stata. If None, all columns are loaded.
-<br>**obs**_(int or str)_: The number of observations to load into Stata. If None, all observations are loaded.
-
+<ul>
+<li>Pythonic method to load a dataset into Stata. Equivalent to <code>use</code> command in Stata.</li><br>
+<li><strong>data</strong><em>  str</em> : The path to the data file to load into Stata.</li>
+<li><strong>columns</strong><em>  list or str</em> : The columns to load into Stata. If None, all columns are loaded.</li>
+<li><strong>obs</strong><em>  int or str</em> : The number of observations to load into Stata. If None, all observations are loaded.</li>
+</ul>
 
 ### **StataHelper.use_file(_self, path, frame=None, force=False, \*args, \*\*kwargs_)**
-Read any pandas-supported file into Stata. Equivalent to `import delimited` in Stata for delimited files. 
-This method allows some files that cannot be imported directly into Stata to be loaded.
-<br>**path**_(str)_: The path to the file to load into Stata.
-<br>**frame**_(str)_: The name of the frame to load the data into. If None, the file name is used.
-<br>**force**_(bool)_: Whether to overwrite the existing frame. If False, the frame is appended.
-
-Raises a `ValueError` if the extension is not in the list of supported file types.
-
-Valid file types include:
-- CSV
-- Excel
-- Parquet
-- Stata
-- Feather
-- SAS
-- SPSS
-- SQL
-- HTML
-- JSON
-- pickle/compressed files
-- xml
-- clipboard
+<ul>
+<li>Read any pandas-supported file into Stata. Equivalent to <code>import delimited</code> in Stata for delimited files.</li>
+<li>This method allows some files that cannot be imported directly into Stata to be loaded.</li>
+<br>
+<li><strong>path</strong><em>  str</em> : The path to the file to load into Stata.</li>
+<li><strong>frame</strong><em>  str</em> : The name of the frame to load the data into. If None, the file name is used.</li>
+<li><strong>force</strong><em>  bool</em> : Whether to overwrite the existing frame. If False, the frame is appended.</li>
+<li>Raises a <code>ValueError</code> if the extension is not in the list of supported file types.</li>
+<br>
+<li>Valid file types include: CSV, Excel, Parquet, Stata, Feather, SAS, SPSS, SQL, HTML, JSON, pickle/compressed files, xml, clipboard.</li>
+</ul>
 
 
-### **StataHelper.use_as_pandas(_self, frame=None, var=None, obs=None, selectvar=None, valuelabels=None, missinglabels=\_DefaultMissing(), \*args, \*\*kwargs_)**
-Read a Stata frame into a pandas DataFrame. Equivalent to `export delimited` in Stata for delimited files.
-<br>**frame**_(str)_: The name of the frame to read into a pandas DataFrame. If None, the active frame is used.
-<br>**var**_(list or str)_: The variables to read into the DataFrame. If None, all variables are read.
-<br>**obs**_(int or str)_: The number of observations to read into the DataFrame. If None, all observations are read.
-<br>**selectvar**_(str)_: The variable to use as the index. If None, the index is not set.
-<br>**valuelabels**_(bool)_: Whether to use value labels. If True, the value labels are used. If False, the raw values are used.
-<br>**missinglabels**_(str)_: The missing value labels to use. If None, the default missing value labels are used.
+### StataHelper.use_as_pandas(_self, frame=None, var=None, obs=None, selectvar=None, valuelabels=None, missinglabels=\_DefaultMissing(), \*args, \*\*kwargs_)**
+<ul>
+<li>Read a Stata frame into a Pandas DataFrame. Equivalent to <code>export delimited</code> in Stata for delimited files.</li><br>
+<li><strong>frame</strong><em>  str</em> : The name of the frame to read into a pandas DataFrame. If None, the active frame is used.</li>
+<li><strong>var</strong><em>  list or str</em> : The variables to read into the DataFrame. If None, all variables are read.</li>
+<li><strong>obs</strong><em>  int or str</em> : The number of observations to read into the DataFrame. If None, all observations are read.</li>
+<li><strong>selectvar</strong><em>  str</em> : The variable to use as the index. If None, the index is not set.</li>
+<li><strong>valuelabels</strong><em>  bool</em> : Whether to use value labels. If True, the value labels are used. If False, the raw values are used.</li>
+<li><strong>missinglabels</strong><em>  str</em> : The missing value labels to use. If None, the default missing value labels are used.</li>
+
 
 This method allows some files that stata cannot export directly to be read into a pandas DataFrame. 
-In the case of .dta files, this method is significantly faster than using the `pandas.read_stata` method as the dataset 
-is first loaded into Stata and then read into a pandas DataFrame, which reduces overhead in directly reading the file in Pandas.
+In the case of .dta files, this method is significantly faster than using the <code>pandas.read_stata</code> method as the dataset 
+is first loaded into Stata and then read into a Pandas DataFrame. 
+</ul>
+
+### **StataHelper.save(_path, frame=None, var=None, obs=None, selectvar=None, valuelabel=None, missinglabel=None, missval=\_DefaultMissing(), \*args, \*\*kwargs_)**
+<ul>
+<li>Save a Stata dataset to a file. Passes the frame to Pandas and saves the file using the Pandas method. Valid file types are the same as <code>use_file</code>.</li> <br>
+<li><strong>path</strong><em>  str</em> : The path to save the file to.</li>
+<li><strong>frame</strong><em>  str</em> : The name of the frame to save. If None, the active frame is used.</li>
+<li><strong>var</strong><em>  list or str</em> : The variables to save. If None, all variables are saved.</li>
+<li><strong>obs</strong><em>  int or str</em> : The number of observations to save. If None, all observations are saved.</li>
+<li><strong>selectvar</strong><em>  str</em> : The variable to use as the index. If None, the index is not set.</li>
+<li><strong>valuelabels</strong><em>  bool</em> : Whether to use value labels. If True, the value labels are used. If False, the raw values are used.</li>
+<li><strong>missinglabels</strong><em>  str</em> : The missing value labels to use. If None, the default missing value labels are used.</li>
+<li><strong>missval</strong><em>  str</em> : The missing value labels to use. If None, the default missing value labels are used.</li><br>
+<li>Raises a <code>ValueError</code> if the extension is not in the list of supported file types.</li>
+<br>
+<li>Valid file types include: CSV, Excel, Parquet, Stata, Feather, SAS, SPSS, SQL, HTML, JSON, pickle/compressed files, xml, clipboard.</li>
+</ul>
+</ul>
+
+### **StataHelper.schedule(_self, cmd, pmap_)**
+<ul>
+<li>Returns the queue of commands to be run in parallel (cartesian product). Analogous to the parallel method, but does not execute the commands.</li>
+<li><strong>cmd</strong><em>  str</em> : The Stata command to run in parallel.</li>
+<li><strong>pmap</strong><em>  dict</em> : The parameters to iterate over in the Stata command. Can be any iterable object of any dimension, but note that the deeper the dimension, the more (potentially redundant) combinations are created.</li>
+<br><li>All keys in pmap must be in cmd, and all placeholders in cmd must be in pmap.</li>
+</ul>
+This method creates a queue of string commands to be run in parallel by replacing the bracketed values with their respective values in the cartesian product of the values in pmap.
+"Queue" is used loosely here, as the commands are not run sequentially and there is no guarantee of the order in which they are run in parallel.
+However, each process's command is labelled with a unique identifier in the order of the queue.
 
 
-### **StataHelper.save(path, frame=None, var=None, obs=None, selectvar=None, valuelabel=None, missinglabel=None, missval=\_DefaultMissing(), \*args, \*\*kwargs_)**
-Save a Stata dataset to a file. Pases the frame to Pandas and saves the file using the Pandas method. Valid file types are
-the same as `use_file`.
-<br>**path**_(str)_: The path to save the file to.
-<br>**frame**_(str)_: The name of the frame to save. If None, the active frame is used.
-<br>**var**_(list or str)_: The variables to save. If None, all variables are saved.
-<br>**obs**_(int or str)_: The number of observations to save. If None, all observations are saved.
-<br>**selectvar**_(str)_: The variable to use as the index. If None, the index is not set.
-<br>**valuelabels**_(bool)_: Whether to use value labels. If True, the value labels are used. If False, the raw values are used.
-<br>**missinglabels**_(str)_: The missing value labels to use. If None, the default missing value labels are used.
-<br>**missval**_(str)_: The missing value labels to use. If None, the default missing value labels are used.
-
-Raises a `ValueError` if the extension is not in the list of supported file types.
-
-### **StataHelper.schedule(_self, cmd, pmap)**
-Return the que of commands to be run in parallel (cartesian product). Analogous to the parallel method, but
-does not execute the commands.
-<br>**cmd**_(str)_: The Stata command to run in parallel.
-<br>**pmap**_(dict)_: The parameters to iterate over in the Stata command. Can be any iterable object of any dimension, but
-note that the deeper the dimension, the more (potentially redundant) combinations are created.
-
-All keys in pmap must be in cmd, and all placeholders in cmd must be in pmap.
-
-This method creates a queue of string commands to be run in parallel by replacing the bracketed values with their respecitve
-values in the cartesian product of the values in pmap.
-"Queue" is used loosely here, as the commands are not run sequentially and there is no guarantee of the order in 
-which they are run in parallel. 
-
-however, each process's command is labelled with a unique identifier in the order of the queue
-
-
-### **StataHelper.parallel**(_self, code, values, stata_wildcard=False, max_cores=None, safety_buffer=1)
- **code** _(str)_: The StataHelper code to run in parallel, including placeholders for the values to iterate over.
-Placeholders can be either wildcards `*` or brace notation `{}`. If wildcards are used, then the items in `values` must be
-ordered in order of the wildcards and its type can be any of list, dict, or tuple. 
-If brace notation is used, then `values` must be a dictionary with keys that match the placeholders in the StataHelper code.
-<br><br>
-e.g. `reg {y} {x} {control}` would require a dictionary with keys `y`, `x`, and `control`.<br>
-
-**values** _(list, dict, tuple)_: The values to iterate over in the StataHelper code. 
-If a list or tuple, the order of the values. If a dict, the order only matters if you use wildcards.
-In that case, the keys are ignored. Items in sublists are joined with a whitespace `" "` and allow multiple values for a single placeholder.
-
+For example, 
 ```python
+from StataHelper import StataHelper
+s = StataHelper(splash=False)
 values = {'x': [['indepvar1', 'indepvar2'], 'indepvar1', 'indepvar2', 'indepvar3']}
-stata.parallel("reg y {x}", values)
+s.schedule("reg y {x}", values)
 ```
-would run the following regressions:
+would place the following regressions in queue.
 ```stata
 reg y indepvar1 indepvar2
 reg y indepvar1
@@ -427,46 +479,75 @@ reg y indepvar3
 Values can also be conditional statements.
 
 ```python
+from StataHelper import StataHelper
+s = StataHelper(splash=False)
 values = {'x': ['indepvar1', 'indepvar2', 'indepvar3'],
           'subset': ['var1==1', 'var2==2', 'var3==3']}
-stata.parallel("reg y {x} if {subset}", values)
+s.schedule("reg y {x} if {subset}", values)
 ```
-would run the following regressions:
+returns the following regressions in queue
 ```stata
 reg y indepvar1 if var1==1
+reg y indepvar1 if var2==2
+reg y indepvar1 if var3==3
+reg y indepvar2 if var1==1
 reg y indepvar2 if var2==2
+reg y indepvar2 if var3==3
+reg y indepvar3 if var1==1
+reg y indepvar3 if var2==2
 reg y indepvar3 if var3==3
 ```
-Logical operators must be specified in the conditional statement.
+Logical operators can be specified in the conditional statement.
 
 ```python
-values = {'x': ['indepvar1', 'indepvar2', 'indepvar3'],
+from StataHelper import StataHelper
+s = StataHelper(splash=False)
+values = {'x': ['indepvar1', 'indepvar2'],
           'subset': ['var1==1 & var2==2', 'var2==2 | var3==3', 'var3==3']}
-StataHelper.parallel("reg y {x} if {subset}", values)
+s.schedule("reg y {x} if {subset}", values)
 ```
-would run the following regressions:
+returns:
 ```stata
 reg y indepvar1 if var1==1 & var2==2
+reg y indepvar1 if var2==2 | var3==3
+reg y indepvar1 if var3==3
+reg y indepvar2 if var1==1 & var2==2
 reg y indepvar2 if var2==2 | var3==3
-reg y indepvar3 if var3==3
-``` 
- **max_cores** _(int)_: The maximum number of cores to use. If `None`, then the min of `os.cpus()-safety_buffer` and 
- the total number of combinations is used. If `max_cores` is greater than the number of combinations and the number of
- combinations is greater than the number of cores, then `os.cpus()-safety_buffer` are used.
- 
- **safety_buffer** _(int)_: The number of cores to leave open for other processes.
- 
- **show_batches** _(bool)_: Prints all the combinations of the values to the console. Useful for debugging. 
- `StataHelper.parallel()` creates a list containing the cartesian product of `values`, and `show_batches` 
- prints this list to the console.
+reg y indepvar2 if var3==3
+```
+
+
+### **StataHelper.parallel**(_self, cmd, pmap, name=None, max_cores=None, safety_buffer=1)
+<ul>
+<li>Runs a series of Stata commands in parallel. Analogous to the schedule method, but executes the commands.</li>
+<li><strong>cmd</strong><em>   str</em> : The StataHelper code to run in parallel, including placeholders for the values to iterate over. Placeholders use brace notation <code>{}</code>.
+<code>pmap</code> must be a dictionary with keys that match the placeholders in the StataHelper code.</li>
+<li><strong>pmap</strong><em>   list, dict, tuple</em> : The values to iterate over in the StataHelper code. If a list or tuple, the order of the values. If a dict, the order only matters if you use wildcards. In that case, the keys are ignored. Items in sublists are joined with a whitespace <code>" "</code> and allow multiple values for a single placeholder.</li>
+<li><strong>name</strong><em>  str</em> : The name of the output directory, replacing <code>*</code> in <code>cmd</code>. If None, a unique identifier is created based on the order of the process in the queue.</li>
+<li><strong>max_cores</strong><em>  int</em> : The maximum number of cores to use. If <code>None</code>, then the <code>min(os.cpus()-safety_buffer, len(pmap))</code> is used. if <code>max_cores</code> is greater than the number of combinations and the number of combinations is greater than the number of cores, then <code>os.cpus()-safety_buffer</code> are used.</li>
+<li><strong>safety_buffer</strong><em>  int</em> : The number of cores to leave open for other processes.</li>
+</ul>
+
+
+
+
 ---
-## Contributing
+# Contributing
+Contributions are welcome! If you would like to contribute to the project, 
+please fork the repository and submit a pull request. Specifically, we are looking for contributions in the following areas:
+- Testing current functionalities on multiple platforms
+- Testing and following StataNow functionalities
+- within-Stata multiprocessing (to migrate away from the `multiprocessing` module)
+- Applications of NLP or LLM in troubleshooting stata errors and summarizing help files 
+
+# License
 
 
-## License
-
-
-
+# Author
+Collin Zoeller, Tepper School of Business, Carnegie Mellon University
+<br>zoellercollin@gmail.com
+<br>Github: [ColZoel](https://github.com/ColZoel)
+<br>[colzoel.github.io](https://colzoel.github.io)
 
 
 ---
