@@ -1,14 +1,14 @@
 """
-process StataHelper commands for each parallel process by parsing the arguments in order into the wildcard * placeholders, or
-by name irrespective of the order of the arguments
+wrappers for Stata commands and functions
 
 """
 from multiprocessing import Pool
 from builtins import *
 from multiprocessing import cpu_count
 
+
 class CarriagePrint:
-    def __init__(self,lst):
+    def __init__(self, lst):
         self.lst = lst
 
     def __str__(self):
@@ -43,5 +43,3 @@ def parallelize(func, iterable, cores=None, *args):
             return p.starmap(func, iterable)
         else:
             return p.map(func, iterable)
-
-

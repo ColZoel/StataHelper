@@ -3,19 +3,18 @@ StataHelper: a simplified Python wrapper and parallelizer for StataHelper
 """
 import sys
 from builtins import *
-from typing import List, Tuple, Dict
 from utils import *
 from utils import _DefaultMissing
 from wrappers import *
 import pandas as pd
 import numpy as np
-from collections import OrderedDict
 import os
-from glob import glob
 import time
 import datetime
+from typing import Dict, List
 
 
+# --------------------------- StataHelper Class ---------------------------
 class StataHelper:
     def __init__(self,
                  stata_path=None,
@@ -38,7 +37,7 @@ class StataHelper:
         self.pmap = None
         self.queue = None
         self.qcount = None
-
+        self.data = None
         # --------------------------- System/ Parallelization Parameters ---------------------------
         self.cores = os.cpu_count()
         self.safety_buffer = 1
@@ -81,7 +80,7 @@ class StataHelper:
         self.stata_initialized = pystata.config.is_stata_initialized()  # Doesn't seem to work in base Pystata module
 
         if not self.stata_initialized:
-            raise SystemError("StataHelper is not initialized.")  # TODO: change to StataError
+            raise SystemError("StataHelper is not initialized.")
 
     def is_stata_initialized(self):
         """
@@ -218,7 +217,8 @@ class StataHelper:
             else:
                 raise ValueError(f"Unsupported file extension: {extension}. Check "
                                  f"https://pandas.pydata.org/docs/reference/io.html for supported file types.\n"
-                                 f"Is your filetype supported by pandas but not listed here? Email zoellercollin@gmail.com"
+                                 f"Is your filetype supported by pandas but not listed here? "
+                                 f"Email zoellercollin@gmail.com"
                                  f"or open an issue on the Github repo to make it right.")
         else:
             raise ValueError("Unsupported file type. Array, Pandas objects, or saved files accepted. Check "
@@ -237,8 +237,7 @@ class StataHelper:
                       obs: str | int | list = None,
                       selectvar: str | int | list = None,
                       valuelabel: bool = False,
-                      missingval: str = _DefaultMissing(),
-                      *args, **kwargs) -> pd.DataFrame:
+                      missingval: str = _DefaultMissing()) -> pd.DataFrame:
         """
         return the data as a pandas dataframe.
         Wrapper for pystata.stata.frame_to_pdataframe and pystata.stata.data_to_pdataframe
@@ -246,20 +245,19 @@ class StataHelper:
         """
 
         if frame is not None:
-                data = pystata.stata.frame_to_pdataframe(frame, var=var, obs=obs, selectvar=selectvar,
-                                                               valuelabel=valuelabel, missingval=missingval)
+            data = pystata.stata.frame_to_pdataframe(frame, var=var, obs=obs, selectvar=selectvar,
+                                                     valuelabel=valuelabel, missingval=missingval)
         else:
             data = pystata.stata.data_to_pdataframe(var=var, obs=obs, selectvar=selectvar,
-                                                                valuelabel=valuelabel, missingval=missingval)
+                                                    valuelabel=valuelabel, missingval=missingval)
         return data
-
 
     @staticmethod
     def save(path: str, frame: str | None = None,
              var: str | int | list = None,
-             obs:  str | int | list =None,
-             selectvar:  str | int | list=None,
-             valuelabel: bool =False, missingval: str = _DefaultMissing(), *args, **kwargs):
+             obs:  str | int | list = None,
+             selectvar:  str | int | list = None,
+             valuelabel: bool = False, missingval: str = _DefaultMissing(), *args, **kwargs):
         """
         save the data to a file. Will save automatically to `path' depending on the path's extension.
         Except `path`, all params are the same as `pystata.stata.data_to_pdataframe`.
@@ -282,10 +280,10 @@ class StataHelper:
 
         if frame is not None:
             data = pystata.stata.frame_to_pdataframe(frame, var=var, obs=obs, selectvar=selectvar,
-                                                           valuelabel=valuelabel, missingval=missingval)
+                                                     valuelabel=valuelabel, missingval=missingval)
         else:
             data = pystata.stata.data_to_pdataframe(var=var, obs=obs, selectvar=selectvar,
-                                                         valuelabel=valuelabel, missingval=missingval)
+                                                    valuelabel=valuelabel, missingval=missingval)
 
         if extension == 'csv':
             data.to_csv(path, *args, **kwargs)
@@ -321,11 +319,10 @@ class StataHelper:
 
         return None
 
-
     @staticmethod
     def _parse_cmd(cmd: str, params: Dict):
         """
-        parse elements of a StataHelper command and replace wildcards or bracketed arguments with values from the arguments
+        parse elements of a StataHelper command and replace bracketed arguments with values from the arguments
         :param cmd: str StataHelper command
         :param params: dict of arguments
         :return: result of the command
@@ -355,13 +352,14 @@ class StataHelper:
         """
 
         # TODO: save schedule to a file and save to output_dir
+        # Todo: option to save individual commands to do files in output_dir
         if not isinstance(cmd, str):
             raise TypeError(f" Invalid StataHelper command. Expected a string, got type {type(cmd)}.")
 
         # validate only keys in cmd are in pmap
         cmdkeys = literal_search(cmd)
         bad_pmap_keys = [k for k in pmap.keys() if k not in cmdkeys]  # keys in pmap but not in cmd
-        bad_cmd_keys = [k for k in cmdkeys if k not in pmap.keys()] # keys in cmd but not in pmap
+        bad_cmd_keys = [k for k in cmdkeys if k not in pmap.keys()]  # keys in cmd but not in pmap
 
         if bad_pmap_keys:
             bad_pmap_keys = '\n'.join(bad_pmap_keys)
@@ -433,5 +431,3 @@ class StataHelper:
         parallelize(func=self._parallel_task, iterable=params, cores=self.cores)
 
         return self
-
-

@@ -1,23 +1,21 @@
 """
 Tools for internal code processing
 """
-import itertools
 from builtins import *
-
 import yaml
 import os
-
 from itertools import product
-from typing import List, Tuple, Dict
-# from wrappers import Parameters
+from typing import List, Tuple, Union
 from pathlib import Path
 import re
 
+
 class _DefaultMissing:
-    '''
+    """
     Pystata class. Here for replication.
     https://www.stata.com/python/pystata18/stata.html#ref-defaultmissing
-    '''
+    """
+
     def __repr__(self):
         return "_DefaultMissing()"
 
@@ -25,29 +23,32 @@ class _DefaultMissing:
 class OverwriteError(Exception):
     def __init__(self, filepath, numfiles):
         self.message = (f"OverwriteError: {filepath} already exists. This operation will remove all {numfiles} files"
-        "and saves new ones. If this is intended, set overwrite=True.")
+                        "and saves new ones. If this is intended, set overwrite=True.")
         super().__init__(self.message)
 
 
 def sep(iterable):
-    return " ".join(map(str,iterable))
+    return " ".join(map(str, iterable))
 
 
 def sep_var(estimate_file):
     return os.path.basename(estimate_file).split('_')[0]
 
+
 def literal(s):
-    return "{"+ s + "}"
+    return "{" + s + "}"
+
 
 def literal_search(s):
-    return re.findall(r'\{(.+?)\}', s)
+    # noinspection RegExpRedundantEscape
+    return re.findall(r"\{(.+?)\}", s)
 
 
-def is_pathlike(string: str):
+def is_pathlike(string: Union[str, bytes]):
     try:
         Path(string)
         return True
-    except Exception:
+    except TypeError:
         return False
 
 
@@ -74,24 +75,19 @@ def read_yaml(yamlpath: str | dict) -> dict:
         raise ValueError(f"expected type str or dict, got {type(yamlpath)}")
 
 
-def config_yaml():
-    config = os.path.join(os.path.dirname(__file__), 'config.yaml')
-    return read_yaml(config)
-
-
-def read_keys(str, dict):
-    if str in dict.keys():
-        return dict[str]
+def read_keys(key, dictionary):
+    if key in dictionary.keys():
+        return dictionary[key]
     else:
         return None
 
 
 def progress(text, i, count):
-    i = i+1
-    l= 20
-    pct = (i/count)*100
-    width = int(l*i//count)
-    bar = '#'*width+" "*(l-width)
+    i = i + 1
+    bl = 20
+    pct = (i / count) * 100
+    width = int(bl * i // count)
+    bar = '#' * width + " " * (bl - width)
     print(f"\r{i} of {count} |{bar}| {int(pct)}% | {text}", end="")
     if i == count:
         print("")
