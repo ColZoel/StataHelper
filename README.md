@@ -1,3 +1,4 @@
+![workflow name](https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg)
 
 # StataHelper
 ## A Simplified Python wrapper and Parallelization Library for Pystata
