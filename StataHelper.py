@@ -315,7 +315,7 @@ class StataHelper:
             raise ValueError(f"Unsupported file extension: {extension}. Check "
                              f"https://pandas.pydata.org/docs/reference/io.html for supported file types.\n"
                              f"Is there a filetype you would like to see supported (pandas or not)? create a new issue "
-                             f"on the Github repo or email zoellercollin@gmail.com.")
+                             f"on the Github repo: https://github.com/ColZoel/StataHelper/ .")
 
         return None
 
@@ -341,7 +341,7 @@ class StataHelper:
             self.output_dir = os.path.join(os.getcwd(), "output")
         os.makedirs(self.output_dir, exist_ok=True)
 
-    # @carriage_print
+
     def schedule(self, cmd: str, pmap: dict):
         """
         Return the que of commands to be run in parallel (cartesian product). Analogous to the parallel method, but

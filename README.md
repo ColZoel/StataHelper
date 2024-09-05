@@ -5,34 +5,14 @@
 ### Table of Contents
 - [StataHelper](#StataHelper)
   - [Installation](#Installation)
-    - [From PyPi](#From-PyPi)
-    - [Dependencies](#Dependencies)
   - [Introduction](#Introduction)
-    - [Use Case: Looped Regressions](#Use-Case-Looped-Regressions)
+  - [Use Case: Looped Regressions](#Use-Case-Looped-Regressions)
   - [Usage](#Usage)
     - [Unified Interface](#Unified-Interface)
     - [Parallelization](#Parallelization)
-      - [Brace Notation](#Brace-Notation)
-      - [Multi-level Parameters](#Multi-level-Parameters)
-      - [Multiline Stata Code](#Multiline-Stata-Code)
-      - [Conditional Statements](#Conditional-Statements)
-      - [Saving Estimation Results](#Saving-Estimation-Results)
   - [Documentation](#Documentation)
     - [Class: StataHelper](#Class-StataHelper)
     - [Methods](#Methods)
-    - [StataHelper.is_stata_initialized](#StataHelperis_stata_initializedself)
-    - [StataHelper.status](#StataHelperstatusself)
-    - [StataHelper.close_output_file](#StataHelperclose_output_fileself)
-    - [StataHelper.get_return](#StataHelperget_returnself)
-    - [StataHelper.get_ereturn](#StataHelperget_ereturnself)
-    - [StataHelper.get_sreturn](#StataHelperget_sreturnself)
-    - [StataHelper.run](#StataHelperrunself-cmd-kwargs)
-    - [StataHelper.use](#StataHelperuseself-data-columnsnone-obsnone-kwargs)
-    - [StataHelper.use_file](#StataHelperuse_fileself-path-frameNone-forceFalse-args-kwargs)
-    - [StataHelper.use_as_pandas](#StataHelperuse_as_pandasself-frameNone-varNone-obsNone-selectvarNone-valuelabelsNone-missinglabels_DefaultMissing-args-kwargs)
-    - [StataHelper.save](#StataHelpersave_path-frameNone-varNone-obsNone-selectvarNone-valuelabelNone-missinglabelNone-missval_DefaultMissing-args-kwargs)
-    - [StataHelper.schedule](#StataHelperscheduleself-cmd-pmap_)
-    - [StataHelper.parallel](#StataHelperparallelself-cmd-pmap-nameNone-max_coresNone-safety_buffer1)
 - [Contributing](#Contributing)
 - [License](#License)
 - [Author](#Author)
@@ -44,7 +24,7 @@ The second is to clone the repository.
 ```bash
 pip install StataHelper
 ```
-
+### From GitHub
 ```bash 
 pip install git+
 git clone 
@@ -52,8 +32,8 @@ cd StataHelper
 pip install .
 ```
 ### Dependencies
-- Python 3.9+
-- Stata 16+ (Pystata is shipped with most Stata licenses starting Stata 16)
+- Python 3.4+
+- Stata 16+ (Pystata is shipped with Stata licenses starting Stata 16)
 - Pandas
 - Numpy
 
@@ -276,8 +256,6 @@ You can easily load these files into Stata by looping over the files in the dire
 After which, you can use the `esttab` command to create a table of the results just as if you had run the regressions in a
 loop in Stata.
 
-```stata
-
 
 In general, this method can be used to run many types of stata commands in parallel, not just regressions.
 You might, for example, want to run a series of `tabstat` commands to summarize the data and save the results 
@@ -302,11 +280,15 @@ table1_5.xlsx
 
 # Documentation
 
-<style>
-ul {
-    list-style-type: none;
-}
-</style>
+[//]: # (<style>)
+
+[//]: # (ul {)
+
+[//]: # (    list-style-type: none;)
+
+[//]: # (})
+
+[//]: # (</style>)
 
 <!-- ************* WARNING ************  -->
 
@@ -545,9 +527,9 @@ please fork the repository and submit a pull request. Specifically, we are looki
 
 # Author
 Collin Zoeller, Tepper School of Business, Carnegie Mellon University
-<br>zoellercollin@gmail.com
+<br>[zoellercollin@gmail.com](mailto:zoellercollin@gmail.com)
 <br>Github: [ColZoel](https://github.com/ColZoel)
-<br>[colzoel.github.io](https://colzoel.github.io)
+<br>Website: [colzoel.github.io](https://colzoel.github.io)
 
 
 ---
