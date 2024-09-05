@@ -342,12 +342,13 @@ class StataHelper:
         os.makedirs(self.output_dir, exist_ok=True)
 
     # @carriage_print
-    def schedule(self, cmd: str, pmap: dict):
+    def schedule(self, cmd: str, pmap: dict, save_do=False):
         """
         Return the que of commands to be run in parallel (cartesian product). Analogous to the parallel method, but
         does not execute the commands.
         :param cmd: str StataHelper command template
         :param pmap: dict where the keys correspond with the values in cmd to change and the values are lists of values
+        :param save_do: bool, save the commands to a do file in the output directory
         :return: list of commands to be run in parallel
         """
 
@@ -377,6 +378,11 @@ class StataHelper:
         self._prep_output()
         self.cmd = cmd
         self.pmap = pmap
+
+        if save_do:
+            with open(os.path.join(self.output_dir, "schedule.do"), "w") as f:
+                f.write("\n".join(self.queue)) # fixme: needs to create a new dofile for each command, complete with the command, the output file, and logfile
+
         return self.queue
 
     def _parallel_task(self, idx, cmd, kwargs=None):
