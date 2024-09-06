@@ -1,4 +1,4 @@
-![workflow name](https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg)
+[//]: # (![workflow name]&#40;https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg&#41;)
 
 # StataHelper
 ## A Simplified Python wrapper and Parallelization Library for Pystata
