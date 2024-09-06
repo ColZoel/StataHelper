@@ -431,7 +431,7 @@ is first loaded into Stata and then read into a Pandas DataFrame.
 <br>
 <li>Valid file types include: CSV, Excel, Parquet, Stata, Feather, SAS, SPSS, SQL, HTML, JSON, pickle/compressed files, xml, clipboard.</li>
 </ul>
-</ul>
+
 
 ### **StataHelper.schedule(_self, cmd, pmap_)**
 <ul>
