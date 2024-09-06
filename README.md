@@ -1,6 +1,7 @@
 ![workflow name](https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg)
 ![Stata](https://img.shields.io/badge/stata-16+-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![version](https://img.shields.io/github/v/release/colzoel/StataHelper) ![release](https://img.shields.io/github/release-date/colzoel/StataHelper)
 
 
 
