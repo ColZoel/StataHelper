@@ -10,7 +10,7 @@ The sfi-tools.py file is a collection of tools that are used to interface with S
 from .StataHelper import StataHelper
 from . import utils
 from . import wrappers
-version = "1.0.0"
+version = "1.0.1"
 __version__ = version
 __author__ = "Collin Zoeller"
 

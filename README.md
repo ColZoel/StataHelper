@@ -1,7 +1,7 @@
-[//]: # (![workflow name]&#40;https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg&#41;)
+![workflow name](https://github.com/ColZoel/StataHelper/actions/workflows/pypi.yaml/badge.svg)
 ![Stata](https://img.shields.io/badge/stata-16+-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![PyPI - Implementation](https://img.shields.io/pypi/implementation/StataHelper)
+
 
 
 # StataHelper
