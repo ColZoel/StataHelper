@@ -1,5 +1,5 @@
 """
-StataHelper: a simplified Python wrapper and parallelizer for StataHelper
+StataHelper: a simplified Python wrapper and parallelizer for Stata
 """
 import sys
 from builtins import *
