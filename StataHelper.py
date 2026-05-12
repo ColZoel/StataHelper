@@ -3,9 +3,9 @@ StataHelper: a simplified Python wrapper and parallelizer for Stata
 """
 import sys
 from builtins import *
-from utils import *
-from utils import _DefaultMissing
-from wrappers import *
+from .utils import *
+from .utils import _DefaultMissing
+from .wrappers import *
 import pandas as pd
 import numpy as np
 import os
